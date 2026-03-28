@@ -12,6 +12,9 @@ import PersonalInfoForm from "@/components/builder/PersonalInfoForm";
 import SummaryForm from "@/components/builder/SummaryForm";
 import ExperienceForm from "@/components/builder/ExperienceForm";
 import EducationForm from "@/components/builder/EducationForm";
+import SkillsForm from "@/components/builder/SkillsForm";
+import ProjectsForm from "@/components/builder/ProjectsForm";
+import ReviewStep from "@/components/builder/ReviewStep";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -176,6 +179,79 @@ function BuilderContent() {
 
   const isLastStep = currentStep === STEPS.length - 1;
 
+  function renderStep() {
+    switch (currentStep) {
+      case 0:
+        return (
+          <ResumeTitle
+            data={{ title: formData.title, template: formData.template }}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 1:
+        return (
+          <PersonalInfoForm
+            data={formData.personalInfo}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 2:
+        return (
+          <SummaryForm
+            data={formData.summary}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 3:
+        return (
+          <ExperienceForm
+            data={formData.experience}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 4:
+        return (
+          <EducationForm
+            data={formData.education}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 5:
+        return (
+          <SkillsForm
+            data={formData.skills}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 6:
+        return (
+          <ProjectsForm
+            data={formData.projects}
+            enabled={formData.projectsEnabled}
+            onUpdate={updateFormData}
+            errors={errors}
+          />
+        );
+      case 7:
+        return (
+          <ReviewStep
+            data={formData}
+            onEditStep={handleStepClick}
+            onSave={handleSave}
+            saving={saving}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
     // Intercept Enter on single-line inputs to prevent accidental navigation
     <div
@@ -205,13 +281,7 @@ function BuilderContent() {
 
         {/* Step card */}
         <div className="mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/30 min-h-64">
-          <StepPlaceholder
-            step={currentStep}
-            label={STEPS[currentStep].label}
-            formData={formData}
-            onUpdate={updateFormData}
-            errors={errors}
-          />
+          {renderStep()}
         </div>
 
         {/* Navigation */}
@@ -254,87 +324,6 @@ function BuilderContent() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Step placeholder (replaced per-step in later prompts) ────────────────────
-
-interface StepPlaceholderProps {
-  step: number;
-  label: string;
-  formData: ResumeFormData;
-  onUpdate: (updates: Partial<ResumeFormData>) => void;
-  errors: Record<string, string>;
-}
-
-function StepPlaceholder({
-  step,
-  label,
-  formData,
-  onUpdate,
-  errors,
-}: StepPlaceholderProps) {
-  if (step === 0) {
-    return (
-      <ResumeTitle
-        data={{ title: formData.title, template: formData.template }}
-        onUpdate={onUpdate}
-        errors={errors}
-      />
-    );
-  }
-
-  if (step === 1) {
-    return (
-      <PersonalInfoForm
-        data={formData.personalInfo}
-        onUpdate={onUpdate}
-        errors={errors}
-      />
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <SummaryForm
-        data={formData.summary}
-        onUpdate={onUpdate}
-        errors={errors}
-      />
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <ExperienceForm
-        data={formData.experience}
-        onUpdate={onUpdate}
-        errors={errors}
-      />
-    );
-  }
-
-  if (step === 4) {
-    return (
-      <EducationForm
-        data={formData.education}
-        onUpdate={onUpdate}
-        errors={errors}
-      />
-    );
-  }
-
-  // Steps 5–7 — placeholder cards (built in subsequent prompts)
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-lg font-bold text-indigo-400">
-        {step + 1}
-      </div>
-      <p className="text-white font-semibold text-lg">{label}</p>
-      <p className="text-slate-500 text-sm mt-1">
-        This step&apos;s form will be built in the next prompt.
-      </p>
     </div>
   );
 }
