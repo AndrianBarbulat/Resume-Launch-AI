@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -25,9 +26,11 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-50">
         <AuthProvider>
-          <Navbar />
-          {children}
-          <Footer />
+          <ToastProvider>
+            <Navbar />
+            {children}
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
