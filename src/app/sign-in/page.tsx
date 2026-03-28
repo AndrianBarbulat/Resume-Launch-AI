@@ -1,12 +1,36 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/hooks/useAuth";
 
+type Mode = "signin" | "signup";
+
+const FIREBASE_ERRORS: Record<string, string> = {
+  "auth/email-already-in-use": "An account with this email already exists.",
+  "auth/invalid-email": "Please enter a valid email address.",
+  "auth/invalid-credential": "Incorrect email or password.",
+  "auth/weak-password": "Password must be at least 6 characters.",
+  "auth/wrong-password": "Incorrect email or password.",
+  "auth/user-not-found": "Incorrect email or password.",
+  "auth/too-many-requests": "Too many attempts. Please try again later.",
+  "auth/popup-blocked": "Popup was blocked. Please allow popups for this site.",
+  "auth/popup-closed-by-user": "", // silent
+};
+
 export default function SignInPage() {
-  const { user, authReady, signInWithGoogle } = useAuth();
+  const { user, authReady, signInWithGoogle, signInWithEmail, signUpWithEmail } =
+    useAuth();
   const router = useRouter();
+
+  const [mode, setMode] = useState<Mode>("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [googlePending, setGooglePending] = useState(false);
+  const [emailPending, setEmailPending] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (authReady && user) {
@@ -22,11 +46,51 @@ export default function SignInPage() {
     );
   }
 
-  async function handleSignIn() {
+  const pending = googlePending || emailPending;
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError("");
+    setName("");
+    setEmail("");
+    setPassword("");
+  }
+
+  async function handleGoogleSignIn() {
+    if (pending) return;
+    setError("");
+    setGooglePending(true);
     try {
       await signInWithGoogle();
-    } catch {
-      // popup closed by user — no action needed
+    } catch (err) {
+      if (err instanceof FirebaseError) {
+        const msg =
+          FIREBASE_ERRORS[err.code] ?? "Something went wrong. Please try again.";
+        if (msg) setError(msg);
+      }
+      setGooglePending(false);
+    }
+  }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setError("");
+    setEmailPending(true);
+    try {
+      if (mode === "signup") {
+        await signUpWithEmail(name.trim(), email.trim(), password);
+      } else {
+        await signInWithEmail(email.trim(), password);
+      }
+      // success — useEffect above handles redirect
+    } catch (err) {
+      if (err instanceof FirebaseError) {
+        const msg =
+          FIREBASE_ERRORS[err.code] ?? "Something went wrong. Please try again.";
+        if (msg) setError(msg);
+      }
+      setEmailPending(false);
     }
   }
 
@@ -34,25 +98,120 @@ export default function SignInPage() {
     <div className="flex flex-1 items-center justify-center min-h-[80vh] px-4 bg-slate-950">
       <div className="w-full max-w-md">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl px-8 py-10 shadow-2xl shadow-black/40">
-          <div className="text-center mb-8">
+          {/* Heading */}
+          <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-white">
               Welcome to ResuLaunch<span className="text-indigo-400">AI</span>
             </h1>
             <p className="text-slate-400 mt-2 text-sm">
-              Sign in to start building your resume
+              {mode === "signin"
+                ? "Sign in to continue building your resume"
+                : "Create an account to get started"}
             </p>
           </div>
 
+          {/* Mode tabs */}
+          <div className="flex rounded-lg bg-slate-800 p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${
+                mode === "signin"
+                  ? "bg-slate-700 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("signup")}
+              className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${
+                mode === "signup"
+                  ? "bg-slate-700 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Google */}
           <button
-            onClick={handleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors shadow-sm"
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={pending}
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed text-gray-800 font-medium py-3 px-4 rounded-xl transition-colors shadow-sm"
           >
-            <GoogleIcon />
-            Continue with Google
+            {googlePending ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-gray-800" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {googlePending ? "Signing in…" : "Continue with Google"}
           </button>
 
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span className="text-xs text-slate-500">or continue with email</span>
+            <div className="flex-1 h-px bg-slate-700" />
+          </div>
+
+          {/* Email form */}
+          <form onSubmit={handleEmailSubmit} noValidate className="space-y-3">
+            {mode === "signup" && (
+              <input
+                type="text"
+                placeholder="Full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="name"
+                className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            )}
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+
+            {error && <p className="text-red-400 text-xs pt-1">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {emailPending ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent" />
+                  {mode === "signup" ? "Creating account…" : "Signing in…"}
+                </>
+              ) : mode === "signup" ? (
+                "Create Account"
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+
           <p className="text-xs text-slate-500 text-center mt-6">
-            By signing in you agree to our terms of service.
+            By continuing you agree to our terms of service.
           </p>
         </div>
       </div>
