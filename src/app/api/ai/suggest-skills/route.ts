@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { askAI } from "@/lib/openai";
+import { askAI } from "@/lib/gemini";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 interface SuggestSkillsBody {
