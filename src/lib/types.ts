@@ -2,24 +2,28 @@ export interface Resume {
   id: string;
   userId: string;
   title: string;
-  template: string;
+  template: "modern" | "classic" | "minimal";
+  status: "draft" | "completed";
   personalInfo: PersonalInfo;
   summary: string;
   experience: Experience[];
   education: Education[];
   skills: string[];
-  projects?: Project[];
+  projects: Project[];
+  projectsEnabled: boolean;
   createdAt: any;
   updatedAt: any;
 }
+
+export type ResumeFormData = Omit<Resume, "id" | "userId" | "createdAt" | "updatedAt">;
 
 export interface PersonalInfo {
   fullName: string;
   email: string;
   phone: string;
   location: string;
-  linkedin?: string;
-  website?: string;
+  linkedin: string;
+  website: string;
 }
 
 export interface Experience {
@@ -45,5 +49,5 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  url?: string;
+  url: string;
 }
