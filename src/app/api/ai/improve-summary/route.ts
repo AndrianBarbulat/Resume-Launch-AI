@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt =
-      "You are a professional resume writer. Improve the following professional summary. Make it more compelling, concise, and impactful. Keep the same general meaning but enhance the language and professionalism. Do not use first person. Keep it under 500 characters. Return ONLY the improved summary text, nothing else.";
+      "You are an elite professional resume writer with 20+ years of experience. Take the following professional summary and DRAMATICALLY expand and improve it. Make it at minimum 6-8 sentences — a full, rich paragraph. Add significantly more detail about: specific technical expertise, measurable achievements with numbers and percentages, leadership experience, industry knowledge, methodologies used, tools and platforms mastered, soft skills demonstrated through examples, and career impact. Enhance every vague statement with concrete specifics. Do not shorten — only expand and enrich. The improved version must be substantially longer and more detailed than the original. Do not use first person. Use the full response length available to you. Return ONLY the improved summary text, nothing else.";
 
     const parts = [`Current Summary: ${currentSummary}`];
     if (jobTitle) parts.push(`Job Title: ${jobTitle}`);
     const userMessage = parts.join("\n");
 
-    const summary = await askAI(systemPrompt, userMessage, 300);
+    const summary = await askAI(systemPrompt, userMessage, 4096);
     return NextResponse.json({ summary });
   } catch {
     return NextResponse.json({ error: "Failed to generate content" }, { status: 500 });

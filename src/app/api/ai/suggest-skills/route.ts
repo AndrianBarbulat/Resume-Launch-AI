@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt =
-      "You are a career advisor. Based on the job title and experience provided, suggest 10 relevant technical and soft skills that would strengthen a resume. Do not repeat any skills already listed. Return ONLY a valid JSON array of skill strings, no other text or explanation.";
+      "You are an elite career advisor and resume specialist with deep knowledge of what Fortune 500 hiring managers and ATS systems prioritize. Based on the job title and experience provided, suggest 20 highly relevant skills that would significantly strengthen a resume. Be extremely thorough and include ALL of the following categories: core technical skills specific to the role (6-8 skills), industry-standard tools, platforms, and software (4-5 skills), methodologies, frameworks, and processes (3-4 skills), leadership and management skills (2-3 skills), and critical soft skills that top employers look for (3-4 skills). Order them by relevance and impact — most important first. Each skill should be specific, not generic — for example 'Agile/Scrum Project Management' instead of just 'Project Management', or 'PostgreSQL Database Administration' instead of just 'Databases'. Do not repeat any skills already listed. Return ONLY a valid JSON array of skill strings, no other text or explanation.";
 
     const parts = [`Job Title: ${jobTitle}`];
     if (experience) parts.push(`Experience: ${experience}`);
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
     const userMessage = parts.join("\n");
 
-    const raw = await askAI(systemPrompt, userMessage, 400);
+    const raw = await askAI(systemPrompt, userMessage, 4096);
 
     let skills: string[];
     try {

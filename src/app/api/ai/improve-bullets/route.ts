@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt =
-      "You are a professional resume writer. Improve the following resume bullet points for the given role. Make them more impactful using strong action verbs, quantifiable achievements where possible, and concise professional language. Return ONLY a valid JSON array of improved bullet strings, no other text or explanation. Keep each bullet under 150 characters. Return the exact same number of bullets as provided.";
+      "You are an elite professional resume writer with 20+ years of experience. Dramatically improve the following resume bullet points for the given role. Transform each bullet into a powerful, DETAILED achievement statement using the STAR method (Situation, Task, Action, Result). Make each bullet as long and descriptive as possible — aim for 150-250 characters per bullet. Every bullet MUST include: a strong action verb at the start, specific context about what was done and why, quantifiable metrics (percentages, dollar amounts, team sizes, timeframes — invent realistic ones if not provided), the tools or technologies used, and the business impact or outcome achieved. Do not write short generic bullets — each one should read like a mini success story. Return ONLY a valid JSON array of improved bullet strings, no other text or explanation. Return the exact same number of bullets as provided.";
 
     const userMessage = [
       `Role: ${role}`,
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       `Bullets:\n${JSON.stringify(bullets)}`,
     ].join("\n");
 
-    const raw = await askAI(systemPrompt, userMessage, 500);
+    const raw = await askAI(systemPrompt, userMessage, 4096);
 
     let improved: string[];
     try {

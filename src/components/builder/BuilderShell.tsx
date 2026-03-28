@@ -20,11 +20,11 @@ import ReviewStep from "@/components/builder/ReviewStep";
 const STEPS = [
   { label: "Title" },
   { label: "Personal Info" },
-  { label: "Summary" },
   { label: "Experience" },
   { label: "Education" },
   { label: "Skills" },
   { label: "Projects" },
+  { label: "Summary" },
   { label: "Review" },
 ];
 
@@ -75,11 +75,6 @@ function validateStep(
     }
 
     case 2:
-      if (data.summary.length > 1000)
-        errs.summary = "Summary must be 1000 characters or less";
-      break;
-
-    case 3:
       data.experience.forEach((exp, i) => {
         if (!exp.company.trim())
           errs[`exp_${i}_company`] = "Company is required";
@@ -87,7 +82,7 @@ function validateStep(
       });
       break;
 
-    case 4:
+    case 3:
       data.education.forEach((edu, i) => {
         if (!edu.institution.trim())
           errs[`edu_${i}_institution`] = "Institution is required";
@@ -97,18 +92,23 @@ function validateStep(
       });
       break;
 
-    case 5:
+    case 4:
       if (data.skills.length === 0)
         errs.skills = "Add at least one skill";
       break;
 
-    case 6:
+    case 5:
       if (data.projectsEnabled) {
         data.projects.forEach((proj, i) => {
           if (!proj.name.trim())
             errs[`proj_${i}_name`] = "Project name is required";
         });
       }
+      break;
+
+    case 6:
+      if (data.summary.length > 1000)
+        errs.summary = "Summary must be 1000 characters or less";
       break;
   }
 
@@ -274,24 +274,13 @@ export default function BuilderShell({
         );
       case 2:
         return (
-          <SummaryForm
-            data={formData.summary}
-            onUpdate={updateFormData}
-            errors={errors}
-            resumeTitle={formData.title}
-            experience={formData.experience}
-            skills={formData.skills}
-          />
-        );
-      case 3:
-        return (
           <ExperienceForm
             data={formData.experience}
             onUpdate={updateFormData}
             errors={errors}
           />
         );
-      case 4:
+      case 3:
         return (
           <EducationForm
             data={formData.education}
@@ -299,7 +288,7 @@ export default function BuilderShell({
             errors={errors}
           />
         );
-      case 5:
+      case 4:
         return (
           <SkillsForm
             data={formData.skills}
@@ -309,13 +298,24 @@ export default function BuilderShell({
             experience={formData.experience}
           />
         );
-      case 6:
+      case 5:
         return (
           <ProjectsForm
             data={formData.projects}
             enabled={formData.projectsEnabled}
             onUpdate={updateFormData}
             errors={errors}
+          />
+        );
+      case 6:
+        return (
+          <SummaryForm
+            data={formData.summary}
+            onUpdate={updateFormData}
+            errors={errors}
+            resumeTitle={formData.title}
+            experience={formData.experience}
+            skills={formData.skills}
           />
         );
       case 7:

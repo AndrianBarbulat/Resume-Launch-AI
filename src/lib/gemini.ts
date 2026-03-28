@@ -1,7 +1,7 @@
 export async function askAI(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 500
+  maxTokens = 4096
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
@@ -17,6 +17,7 @@ export async function askAI(
       body: JSON.stringify({
         model: "gemini-2.5-flash-lite",
         max_tokens: maxTokens,
+        temperature: 0.7,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
