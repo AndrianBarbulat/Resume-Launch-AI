@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Experience, ResumeFormData } from "@/lib/types";
+import { useToast } from "@/context/ToastContext";
+import AIButton from "@/components/builder/AIButton";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,6 +13,13 @@ interface ExperienceFormProps {
   errors: Record<string, string>;
 }
 
+interface EntryAIState {
+  loading: boolean;
+  previousBullets: string[] | null;
+  showUndo: boolean;
+  aiEnhanced: boolean;
+}
+
 interface CardProps {
   entry: Experience;
   index: number;
@@ -18,12 +27,15 @@ interface CardProps {
   expanded: boolean;
   confirmingDelete: boolean;
   errors: Record<string, string>;
+  entryAI: EntryAIState;
   onToggle: () => void;
   onUpdate: (updates: Partial<Experience>) => void;
   onMove: (dir: -1 | 1) => void;
   onDeleteRequest: () => void;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
+  onImprove: () => void;
+  onUndo: () => void;
 }
 
 // ─── Root component ────────────────────────────────────────────────────────────
@@ -33,8 +45,19 @@ export default function ExperienceForm({
   onUpdate,
   errors,
 }: ExperienceFormProps) {
+  const { showToast } = useToast();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [aiState, setAiState] = useState<Record<string, EntryAIState>>({});
+  const undoTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clean up all timers on unmount
+  useEffect(() => {
+    const timers = undoTimers.current;
+    return () => {
+      for (const t of timers.values()) clearTimeout(t);
+    };
+  }, []);
 
   function addEntry() {
     const id = crypto.randomUUID();
@@ -78,6 +101,153 @@ export default function ExperienceForm({
     onUpdate({ experience: next });
   }
 
+  async function handleImproveBullets(id: string) {
+    const entry = data.find((e) => e.id === id);
+    if (!entry) return;
+
+    const originalBullets = [...entry.bullets];
+
+    // Clear any existing undo timer for this entry
+    const existing = undoTimers.current.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id);
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: {
+        loading: true,
+        previousBullets: originalBullets,
+        showUndo: false,
+        aiEnhanced: prev[id]?.aiEnhanced ?? false,
+      },
+    }));
+
+    try {
+      const res = await fetch("/api/ai/improve-bullets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: entry.role,
+          company: entry.company,
+          bullets: entry.bullets,
+        }),
+      });
+
+      if (res.status === 429) {
+        showToast("You're generating too fast. Please wait a moment.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: {
+            loading: false,
+            previousBullets: null,
+            showUndo: false,
+            aiEnhanced: prev[id]?.aiEnhanced ?? false,
+          },
+        }));
+        return;
+      }
+
+      if (!res.ok) {
+        showToast("Failed to improve bullets. Try again.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: {
+            loading: false,
+            previousBullets: null,
+            showUndo: false,
+            aiEnhanced: prev[id]?.aiEnhanced ?? false,
+          },
+        }));
+        return;
+      }
+
+      const json = await res.json();
+      let improved: string[] = json.bullets ?? [];
+
+      // Pad or trim to preserve original bullet count
+      const origLen = originalBullets.length;
+      if (improved.length < origLen) {
+        improved = [...improved, ...Array<string>(origLen - improved.length).fill("")];
+      } else if (improved.length > origLen) {
+        improved = improved.slice(0, origLen);
+      }
+
+      // Update the entry and ensure it is visible
+      onUpdate({
+        experience: data.map((e) =>
+          e.id === id ? { ...e, bullets: improved } : e
+        ),
+      });
+      setExpandedIds((prev) => new Set([...prev, id]));
+
+      // Update AI state — show undo button
+      setAiState((prev) => ({
+        ...prev,
+        [id]: {
+          loading: false,
+          previousBullets: originalBullets,
+          showUndo: true,
+          aiEnhanced: true,
+        },
+      }));
+
+      // Auto-hide undo after 10s
+      const timer = setTimeout(() => {
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], showUndo: false, previousBullets: null },
+        }));
+        undoTimers.current.delete(id);
+      }, 10_000);
+      undoTimers.current.set(id, timer);
+
+      const label = entry.company || "this entry";
+      showToast(`Bullet points improved for ${label}!`, "success");
+    } catch {
+      showToast("Failed to improve bullets. Try again.", "error");
+      setAiState((prev) => ({
+        ...prev,
+        [id]: {
+          loading: false,
+          previousBullets: null,
+          showUndo: false,
+          aiEnhanced: prev[id]?.aiEnhanced ?? false,
+        },
+      }));
+    }
+  }
+
+  function handleUndo(id: string) {
+    const state = aiState[id];
+    if (!state?.previousBullets) return;
+
+    onUpdate({
+      experience: data.map((e) =>
+        e.id === id ? { ...e, bullets: state.previousBullets! } : e
+      ),
+    });
+
+    const existing = undoTimers.current.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id);
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], showUndo: false, previousBullets: null },
+    }));
+  }
+
+  const DEFAULT_AI: EntryAIState = {
+    loading: false,
+    previousBullets: null,
+    showUndo: false,
+    aiEnhanced: false,
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,12 +267,15 @@ export default function ExperienceForm({
             expanded={expandedIds.has(entry.id)}
             confirmingDelete={deleteConfirm === entry.id}
             errors={errors}
+            entryAI={aiState[entry.id] ?? DEFAULT_AI}
             onToggle={() => toggleExpanded(entry.id)}
             onUpdate={(updates) => updateEntry(entry.id, updates)}
             onMove={(dir) => moveEntry(index, dir)}
             onDeleteRequest={() => setDeleteConfirm(entry.id)}
             onDeleteConfirm={() => removeEntry(entry.id)}
             onDeleteCancel={() => setDeleteConfirm(null)}
+            onImprove={() => handleImproveBullets(entry.id)}
+            onUndo={() => handleUndo(entry.id)}
           />
         ))}
       </div>
@@ -128,14 +301,16 @@ function ExperienceCard({
   expanded,
   confirmingDelete,
   errors,
+  entryAI,
   onToggle,
   onUpdate,
   onMove,
   onDeleteRequest,
   onDeleteConfirm,
   onDeleteCancel,
+  onImprove,
+  onUndo,
 }: CardProps) {
-  // Derive a readable header label from current field values
   const parts = [entry.role, entry.company].filter(Boolean);
   const headerLabel =
     parts.length > 0 ? parts.join(" at ") : `Experience ${index + 1}`;
@@ -143,10 +318,11 @@ function ExperienceCard({
   const companyErr = errors[`exp_${index}_company`];
   const roleErr = errors[`exp_${index}_role`];
 
-  // Show description field if it already has content (e.g. loaded from Firestore)
   const [showDescription, setShowDescription] = useState(
     () => Boolean(entry.description)
   );
+
+  const hasBullets = entry.bullets.some((b) => b.trim());
 
   function addBullet() {
     onUpdate({ bullets: [...entry.bullets, ""] });
@@ -180,6 +356,11 @@ function ExperienceCard({
           {entry.current && (
             <span className="shrink-0 text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 px-1.5 py-0.5 rounded-md leading-none">
               Current
+            </span>
+          )}
+          {entryAI.aiEnhanced && (
+            <span className="shrink-0 text-xs text-indigo-400 bg-indigo-950/60 border border-indigo-800/50 px-1.5 py-0.5 rounded-md leading-none">
+              ✨ AI Enhanced
             </span>
           )}
         </button>
@@ -342,9 +523,7 @@ function ExperienceCard({
                 }
                 className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900"
               />
-              <span className="text-sm text-slate-300">
-                I currently work here
-              </span>
+              <span className="text-sm text-slate-300">I currently work here</span>
             </label>
 
             {/* ── Description (optional) ─────────────────────────────────── */}
@@ -393,7 +572,13 @@ function ExperienceCard({
               <p className="text-xs font-semibold text-slate-300 mb-2">
                 Key Responsibilities / Achievements
               </p>
-              <div className="space-y-2">
+
+              {/* Inputs — faded while AI is loading */}
+              <div
+                className={`space-y-2 transition-opacity duration-150 ${
+                  entryAI.loading ? "opacity-40 pointer-events-none" : ""
+                }`}
+              >
                 {entry.bullets.map((bullet, bi) => (
                   <div key={bi} className="flex items-center gap-2">
                     <span
@@ -423,27 +608,33 @@ function ExperienceCard({
                 ))}
               </div>
 
+              {/* Actions row */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
                 <button
                   type="button"
                   onClick={addBullet}
-                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                  disabled={entryAI.loading}
+                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   + Add bullet
                 </button>
-                <button
-                  type="button"
-                  disabled
-                  title="Coming soon"
-                  aria-disabled="true"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed select-none"
-                >
-                  <SparklesIcon />
-                  Improve with AI
-                  <span className="bg-slate-700/70 text-slate-400 px-1 py-0.5 rounded text-xs leading-none">
-                    Soon
-                  </span>
-                </button>
+
+                <AIButton
+                  label="Improve Bullets"
+                  onClick={onImprove}
+                  loading={entryAI.loading}
+                  disabled={!hasBullets}
+                />
+
+                {entryAI.showUndo && (
+                  <button
+                    type="button"
+                    onClick={onUndo}
+                    className="text-xs text-slate-400 hover:text-white transition-colors underline underline-offset-2"
+                  >
+                    ↩ Undo
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -507,14 +698,6 @@ function XMarkIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-function SparklesIcon() {
-  return (
-    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
     </svg>
   );
 }
