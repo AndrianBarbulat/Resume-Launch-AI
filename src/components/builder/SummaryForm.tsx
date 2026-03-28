@@ -6,7 +6,7 @@ import { useAI } from "@/hooks/useAI";
 import { useToast } from "@/context/ToastContext";
 import AIButton from "@/components/builder/AIButton";
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 1000;
 
 interface SummaryFormProps {
   data: string;

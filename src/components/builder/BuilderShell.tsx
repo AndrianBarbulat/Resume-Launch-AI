@@ -75,8 +75,8 @@ function validateStep(
     }
 
     case 2:
-      if (data.summary.length > 500)
-        errs.summary = "Summary must be 500 characters or less";
+      if (data.summary.length > 1000)
+        errs.summary = "Summary must be 1000 characters or less";
       break;
 
     case 3:
