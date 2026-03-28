@@ -143,6 +143,11 @@ function ExperienceCard({
   const companyErr = errors[`exp_${index}_company`];
   const roleErr = errors[`exp_${index}_role`];
 
+  // Show description field if it already has content (e.g. loaded from Firestore)
+  const [showDescription, setShowDescription] = useState(
+    () => Boolean(entry.description)
+  );
+
   function addBullet() {
     onUpdate({ bullets: [...entry.bullets, ""] });
   }
@@ -341,6 +346,47 @@ function ExperienceCard({
                 I currently work here
               </span>
             </label>
+
+            {/* ── Description (optional) ─────────────────────────────────── */}
+            {showDescription ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor={`desc-${entry.id}`}
+                    className="text-xs font-semibold text-slate-300"
+                  >
+                    Description{" "}
+                    <span className="text-slate-500 font-normal">(optional)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdate({ description: "" });
+                      setShowDescription(false);
+                    }}
+                    className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <textarea
+                  id={`desc-${entry.id}`}
+                  rows={3}
+                  value={entry.description ?? ""}
+                  onChange={(e) => onUpdate({ description: e.target.value })}
+                  placeholder="Briefly describe your role and overall impact in a few sentences…"
+                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDescription(true)}
+                className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                + Add description
+              </button>
+            )}
 
             {/* ── Bullet points ──────────────────────────────────────────── */}
             <div>

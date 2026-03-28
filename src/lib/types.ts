@@ -33,6 +33,7 @@ export interface Experience {
   startDate: string;
   endDate: string;
   current: boolean;
+  description?: string;
   bullets: string[];
 }
 

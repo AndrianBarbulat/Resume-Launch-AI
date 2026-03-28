@@ -122,6 +122,11 @@ export default function ReviewStep({
                     {dateRange(exp.startDate, exp.endDate, exp.current)}
                   </p>
                 )}
+                {exp.description && (
+                  <p className="text-sm text-slate-300 mt-1 leading-relaxed">
+                    {exp.description}
+                  </p>
+                )}
                 {exp.bullets.some((b) => b.trim()) && (
                   <ul className="mt-1.5 space-y-0.5 list-none">
                     {exp.bullets
