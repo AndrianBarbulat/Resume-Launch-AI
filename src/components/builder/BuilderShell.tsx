@@ -278,6 +278,9 @@ export default function BuilderShell({
             data={formData.summary}
             onUpdate={updateFormData}
             errors={errors}
+            resumeTitle={formData.title}
+            experience={formData.experience}
+            skills={formData.skills}
           />
         );
       case 3:
@@ -302,6 +305,8 @@ export default function BuilderShell({
             data={formData.skills}
             onUpdate={updateFormData}
             errors={errors}
+            resumeTitle={formData.title}
+            experience={formData.experience}
           />
         );
       case 6:

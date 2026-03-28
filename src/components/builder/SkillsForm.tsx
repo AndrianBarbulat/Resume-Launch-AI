@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import type { ResumeFormData } from "@/lib/types";
+import { useState, useEffect } from "react";
+import type { ResumeFormData, Experience } from "@/lib/types";
+import { useAI } from "@/hooks/useAI";
+import { useToast } from "@/context/ToastContext";
+import AIButton from "@/components/builder/AIButton";
 
 const MAX_SKILLS = 20;
 
@@ -9,22 +12,41 @@ interface SkillsFormProps {
   data: string[];
   onUpdate: (updates: Partial<ResumeFormData>) => void;
   errors: Record<string, string>;
+  resumeTitle: string;
+  experience: Experience[];
 }
 
-export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) {
-  const [input, setInput] = useState("");
+function formatExperience(experience: Experience[]): string {
+  return experience.map((e) => `${e.role} at ${e.company}`).join(", ");
+}
 
-  function addSkill() {
-    const trimmed = input.trim();
+export default function SkillsForm({
+  data,
+  onUpdate,
+  errors,
+  resumeTitle,
+  experience,
+}: SkillsFormProps) {
+  const { showToast } = useToast();
+  const suggestAI = useAI<{ skills: string[] }>();
+
+  const [input, setInput] = useState("");
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (suggestAI.error) showToast(suggestAI.error, "error");
+  }, [suggestAI.error, showToast]);
+
+  function addSkill(skill?: string) {
+    const trimmed = (skill ?? input).trim();
     if (!trimmed) return;
     if (data.length >= MAX_SKILLS) return;
-    // Case-insensitive duplicate guard
     if (data.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
-      setInput("");
+      if (!skill) setInput("");
       return;
     }
     onUpdate({ skills: [...data, trimmed] });
-    setInput("");
+    if (!skill) setInput("");
   }
 
   function removeSkill(skill: string) {
@@ -33,11 +55,36 @@ export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) 
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
-      // Stop propagation so the builder page's Enter-prevention handler
-      // does not interfere with this intentional add-on-Enter behaviour.
       e.stopPropagation();
       addSkill();
     }
+  }
+
+  async function handleSuggest() {
+    const result = await suggestAI.callAI("/api/ai/suggest-skills", {
+      jobTitle: resumeTitle,
+      currentSkills: data,
+      experience: formatExperience(experience),
+    });
+    if (result) {
+      setSuggestions(result.skills);
+      showToast(`${result.skills.length} skills suggested!`, "success");
+    }
+  }
+
+  function addSuggestion(skill: string) {
+    if (data.length >= MAX_SKILLS) return;
+    if (data.some((s) => s.toLowerCase() === skill.toLowerCase())) return;
+    onUpdate({ skills: [...data, skill] });
+  }
+
+  function addAllSuggestions() {
+    if (!suggestions) return;
+    const toAdd = suggestions.filter(
+      (s) => !data.some((d) => d.toLowerCase() === s.toLowerCase())
+    );
+    const adding = toAdd.slice(0, MAX_SKILLS - data.length);
+    if (adding.length > 0) onUpdate({ skills: [...data, ...adding] });
   }
 
   const atMax = data.length >= MAX_SKILLS;
@@ -73,7 +120,7 @@ export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) 
           />
           <button
             type="button"
-            onClick={addSkill}
+            onClick={() => addSkill()}
             disabled={!input.trim() || atMax}
             className="shrink-0 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
           >
@@ -81,7 +128,6 @@ export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) 
           </button>
         </div>
 
-        {/* Counter + error */}
         <div className="flex items-center justify-between mt-2">
           {errors.skills ? (
             <p className="text-red-400 text-xs">{errors.skills}</p>
@@ -100,11 +146,7 @@ export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) 
 
       {/* ── Skill pills ──────────────────────────────────────────────────────── */}
       {data.length > 0 && (
-        <div
-          className="flex flex-wrap gap-2"
-          role="list"
-          aria-label="Added skills"
-        >
+        <div className="flex flex-wrap gap-2" role="list" aria-label="Added skills">
           {data.map((skill) => (
             <span
               key={skill}
@@ -125,22 +167,75 @@ export default function SkillsForm({ data, onUpdate, errors }: SkillsFormProps) 
         </div>
       )}
 
-      {/* ── AI button (disabled placeholder) ─────────────────────────────────── */}
+      {/* ── AI suggest button ─────────────────────────────────────────────────── */}
       <div>
-        <button
-          type="button"
-          disabled
-          title="Coming soon"
-          aria-disabled="true"
-          className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed select-none"
-        >
-          <SparklesIcon />
-          Suggest skills with AI
-          <span className="text-xs bg-slate-700/70 text-slate-400 px-1.5 py-0.5 rounded-md leading-none">
-            Coming soon
-          </span>
-        </button>
+        <AIButton
+          label="Suggest Skills with AI"
+          onClick={handleSuggest}
+          loading={suggestAI.loading}
+        />
       </div>
+
+      {/* ── AI suggestions panel ─────────────────────────────────────────────── */}
+      {suggestions && suggestions.length > 0 && (
+        <div className="border border-indigo-800/40 bg-indigo-950/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-indigo-300">
+              ✨ AI Suggestions
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={addAllSuggestions}
+                disabled={atMax}
+                className="text-xs font-medium text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Add All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuggestions(null)}
+                aria-label="Dismiss suggestions"
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <XMarkIcon />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((skill) => {
+              const alreadyAdded = data.some(
+                (s) => s.toLowerCase() === skill.toLowerCase()
+              );
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => addSuggestion(skill)}
+                  disabled={alreadyAdded || atMax}
+                  title={alreadyAdded ? "Already added" : `Add "${skill}"`}
+                  className={[
+                    "inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full border transition-colors",
+                    alreadyAdded
+                      ? "border-slate-700 text-slate-600 bg-slate-800/30 cursor-default"
+                      : atMax
+                      ? "border-indigo-700/60 text-indigo-400/50 cursor-not-allowed"
+                      : "border-indigo-700/60 text-indigo-300 hover:border-indigo-500 hover:text-indigo-200 hover:bg-indigo-900/30 cursor-pointer",
+                  ].join(" ")}
+                >
+                  {!alreadyAdded && (
+                    <span className={atMax ? "text-indigo-600" : "text-indigo-400"}>
+                      +
+                    </span>
+                  )}
+                  {skill}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -161,25 +256,6 @@ function XMarkIcon() {
         strokeLinejoin="round"
         strokeWidth={2.5}
         d="M6 18L18 6M6 6l12 12"
-      />
-    </svg>
-  );
-}
-
-function SparklesIcon() {
-  return (
-    <svg
-      className="w-4 h-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
       />
     </svg>
   );
