@@ -1,0 +1,474 @@
+"use client";
+
+import { useState } from "react";
+import type { Experience, ResumeFormData } from "@/lib/types";
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+interface ExperienceFormProps {
+  data: Experience[];
+  onUpdate: (updates: Partial<ResumeFormData>) => void;
+  errors: Record<string, string>;
+}
+
+interface CardProps {
+  entry: Experience;
+  index: number;
+  total: number;
+  expanded: boolean;
+  confirmingDelete: boolean;
+  errors: Record<string, string>;
+  onToggle: () => void;
+  onUpdate: (updates: Partial<Experience>) => void;
+  onMove: (dir: -1 | 1) => void;
+  onDeleteRequest: () => void;
+  onDeleteConfirm: () => void;
+  onDeleteCancel: () => void;
+}
+
+// ─── Root component ────────────────────────────────────────────────────────────
+
+export default function ExperienceForm({
+  data,
+  onUpdate,
+  errors,
+}: ExperienceFormProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  function addEntry() {
+    const id = crypto.randomUUID();
+    const blank: Experience = {
+      id,
+      company: "",
+      role: "",
+      startDate: "",
+      endDate: "",
+      current: false,
+      bullets: [""],
+    };
+    onUpdate({ experience: [...data, blank] });
+    setExpandedIds((prev) => new Set([...prev, id]));
+  }
+
+  function removeEntry(id: string) {
+    onUpdate({ experience: data.filter((e) => e.id !== id) });
+    setDeleteConfirm(null);
+  }
+
+  function updateEntry(id: string, updates: Partial<Experience>) {
+    onUpdate({
+      experience: data.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    });
+  }
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function moveEntry(index: number, dir: -1 | 1) {
+    const t = index + dir;
+    if (t < 0 || t >= data.length) return;
+    const next = [...data];
+    [next[index], next[t]] = [next[t], next[index]];
+    onUpdate({ experience: next });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">Work Experience</h2>
+        <p className="text-slate-400 text-sm">
+          Add your work history, most recent first.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {data.map((entry, index) => (
+          <ExperienceCard
+            key={entry.id}
+            entry={entry}
+            index={index}
+            total={data.length}
+            expanded={expandedIds.has(entry.id)}
+            confirmingDelete={deleteConfirm === entry.id}
+            errors={errors}
+            onToggle={() => toggleExpanded(entry.id)}
+            onUpdate={(updates) => updateEntry(entry.id, updates)}
+            onMove={(dir) => moveEntry(index, dir)}
+            onDeleteRequest={() => setDeleteConfirm(entry.id)}
+            onDeleteConfirm={() => removeEntry(entry.id)}
+            onDeleteCancel={() => setDeleteConfirm(null)}
+          />
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addEntry}
+        className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl border border-dashed border-indigo-800 hover:border-indigo-600 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+      >
+        <PlusIcon />
+        Add Experience
+      </button>
+    </div>
+  );
+}
+
+// ─── Entry card ────────────────────────────────────────────────────────────────
+
+function ExperienceCard({
+  entry,
+  index,
+  total,
+  expanded,
+  confirmingDelete,
+  errors,
+  onToggle,
+  onUpdate,
+  onMove,
+  onDeleteRequest,
+  onDeleteConfirm,
+  onDeleteCancel,
+}: CardProps) {
+  // Derive a readable header label from current field values
+  const parts = [entry.role, entry.company].filter(Boolean);
+  const headerLabel =
+    parts.length > 0 ? parts.join(" at ") : `Experience ${index + 1}`;
+
+  const companyErr = errors[`exp_${index}_company`];
+  const roleErr = errors[`exp_${index}_role`];
+
+  function addBullet() {
+    onUpdate({ bullets: [...entry.bullets, ""] });
+  }
+
+  function updateBullet(i: number, value: string) {
+    const next = [...entry.bullets];
+    next[i] = value;
+    onUpdate({ bullets: next });
+  }
+
+  function removeBullet(i: number) {
+    onUpdate({ bullets: entry.bullets.filter((_, idx) => idx !== i) });
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-800/40 shadow-sm hover:border-slate-600 transition-colors overflow-hidden">
+      {/* ── Header row ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 px-4 py-3">
+        {/* Toggle + label */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
+        >
+          <ChevronIcon expanded={expanded} />
+          <span className="text-sm font-medium text-white truncate">
+            {headerLabel}
+          </span>
+          {entry.current && (
+            <span className="shrink-0 text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 px-1.5 py-0.5 rounded-md leading-none">
+              Current
+            </span>
+          )}
+        </button>
+
+        {/* Reorder */}
+        <div className="flex shrink-0 gap-0.5">
+          <button
+            type="button"
+            onClick={() => onMove(-1)}
+            disabled={index === 0}
+            aria-label="Move entry up"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          >
+            <ArrowUpIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(1)}
+            disabled={index === total - 1}
+            aria-label="Move entry down"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          >
+            <ArrowDownIcon />
+          </button>
+        </div>
+
+        {/* Delete / confirm */}
+        {confirmingDelete ? (
+          <div className="flex items-center gap-2 shrink-0 pl-1">
+            <span className="text-xs text-slate-400">Delete?</span>
+            <button
+              type="button"
+              onClick={onDeleteConfirm}
+              className="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors"
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={onDeleteCancel}
+              className="text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onDeleteRequest}
+            aria-label="Delete entry"
+            className="p-1.5 shrink-0 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+          >
+            <TrashIcon />
+          </button>
+        )}
+      </div>
+
+      {/* ── Collapsible body ─────────────────────────────────────────────────── */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-in-out ${
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-slate-700/60 px-4 pt-4 pb-5 space-y-4">
+            {/* Fields grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Company */}
+              <div>
+                <label
+                  htmlFor={`company-${entry.id}`}
+                  className="block text-xs font-semibold text-slate-300 mb-1.5"
+                >
+                  Company <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id={`company-${entry.id}`}
+                  type="text"
+                  value={entry.company}
+                  onChange={(e) => onUpdate({ company: e.target.value })}
+                  placeholder="Acme Corp"
+                  className={`w-full bg-slate-800 border text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                    companyErr ? "border-red-500" : "border-slate-700"
+                  }`}
+                />
+                {companyErr && (
+                  <p className="text-red-400 text-xs mt-1">{companyErr}</p>
+                )}
+              </div>
+
+              {/* Role */}
+              <div>
+                <label
+                  htmlFor={`role-${entry.id}`}
+                  className="block text-xs font-semibold text-slate-300 mb-1.5"
+                >
+                  Job Title <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id={`role-${entry.id}`}
+                  type="text"
+                  value={entry.role}
+                  onChange={(e) => onUpdate({ role: e.target.value })}
+                  placeholder="Senior Software Engineer"
+                  className={`w-full bg-slate-800 border text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                    roleErr ? "border-red-500" : "border-slate-700"
+                  }`}
+                />
+                {roleErr && (
+                  <p className="text-red-400 text-xs mt-1">{roleErr}</p>
+                )}
+              </div>
+
+              {/* Start Date */}
+              <div>
+                <label
+                  htmlFor={`start-${entry.id}`}
+                  className="block text-xs font-semibold text-slate-300 mb-1.5"
+                >
+                  Start Date
+                </label>
+                <input
+                  id={`start-${entry.id}`}
+                  type="month"
+                  value={entry.startDate}
+                  onChange={(e) => onUpdate({ startDate: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors [color-scheme:dark]"
+                />
+              </div>
+
+              {/* End Date */}
+              <div>
+                <label
+                  htmlFor={`end-${entry.id}`}
+                  className="block text-xs font-semibold text-slate-300 mb-1.5"
+                >
+                  End Date
+                </label>
+                <input
+                  id={`end-${entry.id}`}
+                  type="month"
+                  value={entry.endDate}
+                  onChange={(e) => onUpdate({ endDate: e.target.value })}
+                  disabled={entry.current}
+                  className="w-full bg-slate-800 border border-slate-700 text-white text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed [color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            {/* Current checkbox */}
+            <label className="flex items-center gap-2.5 w-fit cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={entry.current}
+                onChange={(e) =>
+                  onUpdate({
+                    current: e.target.checked,
+                    endDate: e.target.checked ? "" : entry.endDate,
+                  })
+                }
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900"
+              />
+              <span className="text-sm text-slate-300">
+                I currently work here
+              </span>
+            </label>
+
+            {/* ── Bullet points ──────────────────────────────────────────── */}
+            <div>
+              <p className="text-xs font-semibold text-slate-300 mb-2">
+                Key Responsibilities / Achievements
+              </p>
+              <div className="space-y-2">
+                {entry.bullets.map((bullet, bi) => (
+                  <div key={bi} className="flex items-center gap-2">
+                    <span
+                      className="shrink-0 text-slate-500 text-lg leading-none select-none"
+                      aria-hidden="true"
+                    >
+                      •
+                    </span>
+                    <input
+                      type="text"
+                      value={bullet}
+                      onChange={(e) => updateBullet(bi, e.target.value)}
+                      placeholder="Led migration of X, reducing latency by 40%"
+                      className="flex-1 bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    {entry.bullets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeBullet(bi)}
+                        aria-label="Remove bullet"
+                        className="shrink-0 p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                      >
+                        <XMarkIcon />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
+                <button
+                  type="button"
+                  onClick={addBullet}
+                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  + Add bullet
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title="Coming soon"
+                  aria-disabled="true"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed select-none"
+                >
+                  <SparklesIcon />
+                  Improve with AI
+                  <span className="bg-slate-700/70 text-slate-400 px-1 py-0.5 rounded text-xs leading-none">
+                    Soon
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Icons ─────────────────────────────────────────────────────────────────────
+
+function PlusIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      className={`w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200 ${
+        expanded ? "rotate-180" : ""
+      }`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ArrowDownIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function XMarkIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function SparklesIcon() {
+  return (
+    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+    </svg>
+  );
+}

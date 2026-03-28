@@ -10,6 +10,8 @@ import StepProgress from "@/components/builder/StepProgress";
 import ResumeTitle from "@/components/builder/ResumeTitle";
 import PersonalInfoForm from "@/components/builder/PersonalInfoForm";
 import SummaryForm from "@/components/builder/SummaryForm";
+import ExperienceForm from "@/components/builder/ExperienceForm";
+import EducationForm from "@/components/builder/EducationForm";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -303,7 +305,27 @@ function StepPlaceholder({
     );
   }
 
-  // Steps 3–7 — placeholder cards (built in subsequent prompts)
+  if (step === 3) {
+    return (
+      <ExperienceForm
+        data={formData.experience}
+        onUpdate={onUpdate}
+        errors={errors}
+      />
+    );
+  }
+
+  if (step === 4) {
+    return (
+      <EducationForm
+        data={formData.education}
+        onUpdate={onUpdate}
+        errors={errors}
+      />
+    );
+  }
+
+  // Steps 5–7 — placeholder cards (built in subsequent prompts)
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-lg font-bold text-indigo-400">
