@@ -7,6 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { createResume } from "@/lib/firestore";
 import type { ResumeFormData } from "@/lib/types";
 import StepProgress from "@/components/builder/StepProgress";
+import ResumeTitle from "@/components/builder/ResumeTitle";
+import PersonalInfoForm from "@/components/builder/PersonalInfoForm";
+import SummaryForm from "@/components/builder/SummaryForm";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -270,47 +273,37 @@ function StepPlaceholder({
   onUpdate,
   errors,
 }: StepPlaceholderProps) {
-  // Step 0 — bare-minimum title input so validation is testable right away
   if (step === 0) {
     return (
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold text-white mb-1">{label}</h2>
-          <p className="text-slate-400 text-sm">
-            Give your resume a title to get started.
-          </p>
-        </div>
-        <div>
-          <label
-            htmlFor="resume-title"
-            className="block text-xs font-semibold text-slate-300 mb-1.5"
-          >
-            Resume Title <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="resume-title"
-            type="text"
-            value={formData.title}
-            onChange={(e) => onUpdate({ title: e.target.value })}
-            placeholder="e.g. Software Engineer Resume"
-            maxLength={55}
-            className={[
-              "w-full bg-slate-800 border text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors",
-              errors.title ? "border-red-500" : "border-slate-700",
-            ].join(" ")}
-          />
-          {errors.title && (
-            <p className="text-red-400 text-xs mt-1">{errors.title}</p>
-          )}
-          <p className="text-slate-500 text-xs mt-1 text-right">
-            {formData.title.length} / 50
-          </p>
-        </div>
-      </div>
+      <ResumeTitle
+        data={{ title: formData.title, template: formData.template }}
+        onUpdate={onUpdate}
+        errors={errors}
+      />
     );
   }
 
-  // Steps 1–7 — placeholder cards
+  if (step === 1) {
+    return (
+      <PersonalInfoForm
+        data={formData.personalInfo}
+        onUpdate={onUpdate}
+        errors={errors}
+      />
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <SummaryForm
+        data={formData.summary}
+        onUpdate={onUpdate}
+        errors={errors}
+      />
+    );
+  }
+
+  // Steps 3–7 — placeholder cards (built in subsequent prompts)
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-lg font-bold text-indigo-400">
