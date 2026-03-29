@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -11,8 +10,10 @@ import {
   duplicateResume,
 } from "@/lib/firestore";
 import { deleteResumePDF } from "@/lib/storage";
-import { fromTimestamp } from "@/lib/utils";
+import { fromTimestamp, timeAgo } from "@/lib/utils";
 import type { Resume } from "@/lib/types";
+import WelcomeSection from "@/components/dashboard/WelcomeSection";
+import StatsCards from "@/components/dashboard/StatsCards";
 import ResumeCard from "@/components/dashboard/ResumeCard";
 import ResumeListItem from "@/components/dashboard/ResumeListItem";
 import SkeletonCard from "@/components/dashboard/SkeletonCard";
@@ -47,7 +48,7 @@ function DashboardContent() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Controls — search is split into raw (input display) and debounced (filter)
+  // Controls — raw search drives the input; debounced search drives filtering
   const [rawSearch, setRawSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("updatedAt");
@@ -75,7 +76,7 @@ function DashboardContent() {
       const saved = localStorage.getItem("rla-dashboard-view");
       if (saved === "list" || saved === "grid") setView(saved);
     } catch {
-      // localStorage unavailable (SSR / private browsing)
+      // unavailable in some environments
     }
   }, []);
 
@@ -102,7 +103,6 @@ function DashboardContent() {
   const displayed = useMemo(() => {
     let result = [...resumes];
 
-    // Text search: title, template name, owner full name
     const q = debouncedSearch.trim().toLowerCase();
     if (q) {
       result = result.filter(
@@ -113,40 +113,26 @@ function DashboardContent() {
       );
     }
 
-    // Status / visibility filter
     switch (filter) {
-      case "completed":
-        result = result.filter((r) => r.status === "completed");
-        break;
-      case "draft":
-        result = result.filter((r) => r.status === "draft");
-        break;
-      case "public":
-        result = result.filter((r) => r.isPublic);
-        break;
+      case "completed": result = result.filter((r) => r.status === "completed"); break;
+      case "draft":     result = result.filter((r) => r.status === "draft");     break;
+      case "public":    result = result.filter((r) => r.isPublic);               break;
     }
 
-    // Sort
     result.sort((a, b) => {
       switch (sort) {
-        case "updatedAt":
-          return tsMs(b.updatedAt) - tsMs(a.updatedAt);
-        case "createdAt":
-          return tsMs(b.createdAt) - tsMs(a.createdAt);
-        case "titleAZ":
-          return (a.title ?? "").localeCompare(b.title ?? "");
-        case "titleZA":
-          return (b.title ?? "").localeCompare(a.title ?? "");
-        default:
-          return 0;
+        case "updatedAt": return tsMs(b.updatedAt) - tsMs(a.updatedAt);
+        case "createdAt": return tsMs(b.createdAt) - tsMs(a.createdAt);
+        case "titleAZ":   return (a.title ?? "").localeCompare(b.title ?? "");
+        case "titleZA":   return (b.title ?? "").localeCompare(a.title ?? "");
+        default:          return 0;
       }
     });
 
     return result;
   }, [resumes, debouncedSearch, filter, sort]);
 
-  const hasActiveFilters =
-    rawSearch.trim() !== "" || filter !== "all";
+  const hasActiveFilters = rawSearch.trim() !== "" || filter !== "all";
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,7 +149,6 @@ function DashboardContent() {
 
   function handleSearch(v: string) {
     setRawSearch(v);
-    // If clearing, also flush debounce immediately so the list updates at once
     if (v === "") setDebouncedSearch("");
   }
 
@@ -197,8 +182,7 @@ function DashboardContent() {
   }
 
   function openDeleteModal(resumeId: string) {
-    const target = resumes.find((r) => r.id === resumeId) ?? null;
-    setDeleteTarget(target);
+    setDeleteTarget(resumes.find((r) => r.id === resumeId) ?? null);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -207,33 +191,13 @@ function DashboardContent() {
     <div className="flex-1 bg-slate-950">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-        {/* ── Page header ─────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 mb-10">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              Welcome back{user?.displayName ? `, ${user.displayName}` : ""}!
-            </h1>
-            <p className="text-slate-400 mt-1 text-sm">
-              Manage and create your professional resumes.
-            </p>
-          </div>
+        {/* ── Welcome ──────────────────────────────────────────────────────── */}
+        {user && <WelcomeSection user={user} />}
 
-          <Link
-            href="/builder"
-            className="shrink-0 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-colors"
-          >
-            <PlusIcon />
-            <span className="hidden sm:inline">Create New Resume</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-        </div>
+        {/* ── Divider ──────────────────────────────────────────────────────── */}
+        <div className="border-t border-slate-800 mb-8" />
 
-        {/* ── Section label ───────────────────────────────────────────────── */}
-        <h2 className="text-lg font-semibold text-white mb-6">
-          Your Resumes
-        </h2>
-
-        {/* ── Loading skeletons ────────────────────────────────────────────── */}
+        {/* ── Loading: skeletons ───────────────────────────────────────────── */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -242,12 +206,19 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* ── No resumes at all ────────────────────────────────────────────── */}
+        {/* ── Loaded: empty state (no resumes at all) ──────────────────────── */}
         {!loading && resumes.length === 0 && <EmptyState />}
 
-        {/* ── Resumes exist — show controls + grid/list ─────────────────────── */}
+        {/* ── Loaded: resumes exist ────────────────────────────────────────── */}
         {!loading && resumes.length > 0 && (
           <>
+            {/* Stats */}
+            <StatsCards resumes={resumes} />
+
+            {/* Recent activity */}
+            <RecentActivity resumes={resumes} />
+
+            {/* Controls */}
             <DashboardControls
               search={rawSearch}
               onSearch={handleSearch}
@@ -277,7 +248,7 @@ function DashboardContent() {
                   <button
                     type="button"
                     onClick={clearFilters}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 hover:border-indigo-400/50 px-4 py-2 rounded-lg transition-colors"
+                    className="text-sm font-medium text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 hover:border-indigo-400/50 px-4 py-2 rounded-lg transition-colors"
                   >
                     Clear filters
                   </button>
@@ -302,7 +273,7 @@ function DashboardContent() {
 
             {/* List view */}
             {displayed.length > 0 && view === "list" && (
-              <div className="flex flex-col gap-0.5 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-800">
+              <div className="flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-800">
                 {displayed.map((resume) => (
                   <ResumeListItem
                     key={resume.id}
@@ -318,7 +289,7 @@ function DashboardContent() {
         )}
       </div>
 
-      {/* ── Delete modal ────────────────────────────────────────────────────── */}
+      {/* ── Delete modal ──────────────────────────────────────────────────────── */}
       {deleteTarget && (
         <DeleteModal
           resume={deleteTarget}
@@ -327,7 +298,7 @@ function DashboardContent() {
         />
       )}
 
-      {/* ── Toast ───────────────────────────────────────────────────────────── */}
+      {/* ── Toast ─────────────────────────────────────────────────────────────── */}
       {toast && (
         <div
           role="status"
@@ -335,9 +306,7 @@ function DashboardContent() {
           className={[
             "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl",
             "text-sm font-medium flex items-center gap-2",
-            toast.type === "success"
-              ? "bg-emerald-600 text-white"
-              : "bg-red-600 text-white",
+            toast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white",
           ].join(" ")}
         >
           {toast.type === "success" ? <CheckIcon /> : <AlertIcon />}
@@ -348,21 +317,91 @@ function DashboardContent() {
   );
 }
 
-// ─── Timestamp helper ─────────────────────────────────────────────────────────
+// ─── Recent activity ──────────────────────────────────────────────────────────
+
+type ActivityAction = "created" | "updated" | "exported";
+
+interface ActivityEvent {
+  resumeId: string;
+  title: string;
+  action: ActivityAction;
+  timestamp: Date;
+}
+
+function deriveActivity(resumes: Resume[]): ActivityEvent[] {
+  const events: ActivityEvent[] = [];
+
+  for (const r of resumes) {
+    const title = r.title?.trim() || "Untitled Resume";
+    const created  = fromTimestamp(r.createdAt);
+    const updated  = fromTimestamp(r.updatedAt);
+    const exported = fromTimestamp(r.lastExportedAt);
+
+    // Pick the most meaningful / most recent event for this resume
+    if (exported) {
+      events.push({ resumeId: r.id, title, action: "exported", timestamp: exported });
+    } else if (updated && created) {
+      // If updatedAt is within 45s of createdAt, treat it as the creation event
+      const sameTime = Math.abs(updated.getTime() - created.getTime()) < 45_000;
+      events.push({
+        resumeId: r.id,
+        title,
+        action: sameTime ? "created" : "updated",
+        timestamp: sameTime ? created : updated,
+      });
+    } else if (created) {
+      events.push({ resumeId: r.id, title, action: "created", timestamp: created });
+    }
+  }
+
+  return events
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 3);
+}
+
+const ACTION_META: Record<ActivityAction, { label: string; icon: React.ReactNode; color: string }> = {
+  created:  { label: "Created",      icon: <SparkleIcon />, color: "text-indigo-400" },
+  updated:  { label: "Updated",      icon: <PencilSmIcon />, color: "text-slate-400"  },
+  exported: { label: "Exported PDF", icon: <DownloadSmIcon />, color: "text-emerald-400" },
+};
+
+function RecentActivity({ resumes }: { resumes: Resume[] }) {
+  const events = useMemo(() => deriveActivity(resumes), [resumes]);
+  if (events.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        Recent Activity
+      </h3>
+      <div className="bg-slate-900 border border-slate-800 rounded-xl divide-y divide-slate-800">
+        {events.map((event, i) => {
+          const meta = ACTION_META[event.action];
+          return (
+            <div key={`${event.resumeId}-${i}`} className="flex items-center gap-3 px-4 py-3">
+              <span className={["shrink-0", meta.color].join(" ")}>{meta.icon}</span>
+              <p className="text-sm text-slate-300 flex-1 min-w-0">
+                <span className="text-slate-500">{meta.label} </span>
+                <span className="font-medium text-white truncate">&ldquo;{event.title}&rdquo;</span>
+              </p>
+              <span className="shrink-0 text-xs text-slate-500">
+                {timeAgo(event.timestamp)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function tsMs(ts: unknown): number {
   return fromTimestamp(ts)?.getTime() ?? 0;
 }
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
-
-function PlusIcon() {
-  return (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
 
 function SearchEmptyIcon() {
   return (
@@ -384,6 +423,30 @@ function AlertIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  );
+}
+
+function PencilSmIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l1.586 1.586a1 1 0 010 1.414L12 16H9v-3z" />
+    </svg>
+  );
+}
+
+function DownloadSmIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
     </svg>
   );
 }
