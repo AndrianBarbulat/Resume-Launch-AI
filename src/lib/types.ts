@@ -13,6 +13,10 @@ export interface Resume {
   projectsEnabled: boolean;
   createdAt: any;
   updatedAt: any;
+  /** Firebase Storage download URL — set after first cloud export */
+  pdfUrl?: string;
+  /** Timestamp of the most recent PDF export */
+  lastExportedAt?: any;
 }
 
 export type ResumeFormData = Omit<Resume, "id" | "userId" | "createdAt" | "updatedAt">;

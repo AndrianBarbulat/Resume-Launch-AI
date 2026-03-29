@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { createResume, updateResume } from "@/lib/firestore";
-import type { ResumeFormData } from "@/lib/types";
+import type { Resume, ResumeFormData } from "@/lib/types";
 import StepProgress from "@/components/builder/StepProgress";
 import ResumeTitle from "@/components/builder/ResumeTitle";
 import PersonalInfoForm from "@/components/builder/PersonalInfoForm";
@@ -16,6 +16,8 @@ import ProjectsForm from "@/components/builder/ProjectsForm";
 import ReviewStep from "@/components/builder/ReviewStep";
 import ResumePreview from "@/components/preview/ResumePreview";
 import ZoomControls from "@/components/preview/ZoomControls";
+import PDFRenderContainer from "@/components/preview/PDFRenderContainer";
+import DownloadButton from "@/components/preview/DownloadButton";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -158,6 +160,8 @@ export default function BuilderShell({
   );
   // Skip marking dirty on the very first render
   const mountedRef = useRef(false);
+  // Ref for the hidden PDF render container
+  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Keep formDataRef up to date every render
   formDataRef.current = formData;
@@ -205,6 +209,17 @@ export default function BuilderShell({
 
     return () => clearInterval(timer);
   }, [user]);
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  // Build a full Resume for the PDF render container and DownloadButton
+  const fullResumeForPDF: Resume = {
+    id: autoSaveIdRef.current ?? "preview",
+    userId: user?.uid ?? "preview",
+    createdAt: null,
+    updatedAt: null,
+    ...formData,
+  };
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -363,7 +378,6 @@ export default function BuilderShell({
         <div
           className={[
             "lg:w-1/2 lg:block py-10",
-            // On mobile: show only when in form view; add bottom padding for the toggle button
             mobileView === "preview" ? "hidden" : "block",
             "pb-24 lg:pb-10",
           ].join(" ")}
@@ -406,8 +420,19 @@ export default function BuilderShell({
               {renderStep()}
             </div>
 
+            {/* Download button — shown on the review step below the card */}
+            {isLastStep && (
+              <div className="mt-4">
+                <DownloadButton
+                  resume={fullResumeForPDF}
+                  containerRef={pdfContainerRef}
+                  variant="ghost"
+                />
+              </div>
+            )}
+
             {/* Navigation */}
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center justify-between mt-4">
               <button
                 type="button"
                 onClick={handleBack}
@@ -451,17 +476,12 @@ export default function BuilderShell({
         {/* ── Right panel: preview ─────────────────────────────────────────── */}
         <div
           className={[
-            // Desktop: sticky sidebar, full viewport height minus navbar (h-16 = 4rem)
             "lg:w-1/2 lg:block lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto",
-            // Background
             "bg-gray-100",
-            // Mobile: show only when in preview view, full height
             mobileView === "form" ? "hidden" : "block min-h-screen",
-            // Mobile top padding for the toggle button clearance (bottom)
             "pb-24 lg:pb-0",
           ].join(" ")}
         >
-          {/* Inner: centre the paper with padding */}
           <div className="p-6 lg:p-8">
             {/* Preview header — desktop only */}
             <div className="hidden lg:flex items-center justify-between mb-4">
@@ -473,7 +493,15 @@ export default function BuilderShell({
                   · {formData.template}
                 </span>
               </div>
-              <ZoomControls zoom={zoom} onChange={setZoom} />
+              <div className="flex items-center gap-2">
+                <ZoomControls zoom={zoom} onChange={setZoom} />
+                <DownloadButton
+                  resume={fullResumeForPDF}
+                  containerRef={pdfContainerRef}
+                  variant="ghost"
+                  size="sm"
+                />
+              </div>
             </div>
 
             <ResumePreview resume={formData} zoom={zoom} />
@@ -503,6 +531,12 @@ export default function BuilderShell({
           )}
         </button>
       </div>
+
+      {/* ── Hidden PDF render container (off-screen, full A4 size) ───────────── */}
+      <PDFRenderContainer
+        resume={fullResumeForPDF}
+        containerRef={pdfContainerRef}
+      />
     </div>
   );
 }
@@ -511,82 +545,33 @@ export default function BuilderShell({
 
 function ArrowLeftIcon() {
   return (
-    <svg
-      className="w-4 h-4"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15 19l-7-7 7-7"
-      />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   );
 }
 
 function ArrowRightIcon() {
   return (
-    <svg
-      className="w-4 h-4"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M9 5l7 7-7 7"
-      />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   );
 }
 
 function EyeIcon() {
   return (
-    <svg
-      className="w-4 h-4"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-      />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
   );
 }
 
 function PencilIcon() {
   return (
-    <svg
-      className="w-4 h-4"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-      />
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
     </svg>
   );
 }

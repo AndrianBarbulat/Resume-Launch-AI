@@ -57,3 +57,11 @@ export async function updateResume(
 export async function deleteResume(resumeId: string): Promise<void> {
   await deleteDoc(doc(db, COL, resumeId));
 }
+
+export async function updateResumePDFUrl(
+  resumeId: string,
+  pdfUrl: string
+): Promise<void> {
+  const ref = doc(db, COL, resumeId);
+  await updateDoc(ref, { pdfUrl, lastExportedAt: serverTimestamp() });
+}
