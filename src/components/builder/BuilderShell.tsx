@@ -15,6 +15,7 @@ import SkillsForm from "@/components/builder/SkillsForm";
 import ProjectsForm from "@/components/builder/ProjectsForm";
 import ReviewStep from "@/components/builder/ReviewStep";
 import ResumePreview from "@/components/preview/ResumePreview";
+import ZoomControls from "@/components/preview/ZoomControls";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -143,6 +144,8 @@ export default function BuilderShell({
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
   // Mobile: toggle between form and preview
   const [mobileView, setMobileView] = useState<"form" | "preview">("form");
+  // Preview zoom: multiplier on the auto-fit scale (1.0 = fill panel)
+  const [zoom, setZoom] = useState(1.0);
 
   // Refs for stable access inside the interval callback
   const dirtyRef = useRef(false);
@@ -460,17 +463,20 @@ export default function BuilderShell({
         >
           {/* Inner: centre the paper with padding */}
           <div className="p-6 lg:p-8">
-            {/* Preview label — desktop only */}
+            {/* Preview header — desktop only */}
             <div className="hidden lg:flex items-center justify-between mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                Live Preview
-              </span>
-              <span className="text-xs text-gray-400 capitalize">
-                {formData.template} template
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  Live Preview
+                </span>
+                <span className="text-xs text-gray-400 capitalize">
+                  · {formData.template}
+                </span>
+              </div>
+              <ZoomControls zoom={zoom} onChange={setZoom} />
             </div>
 
-            <ResumePreview resume={formData} />
+            <ResumePreview resume={formData} zoom={zoom} />
           </div>
         </div>
       </div>
