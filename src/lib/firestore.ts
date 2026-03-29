@@ -93,3 +93,40 @@ export async function getPublicResume(
   if (!data || !data.isPublic) return null;
   return data;
 }
+
+/**
+ * Create an exact copy of an existing resume.
+ * The duplicate gets a fresh ID, timestamps, cleared PDF data, and
+ * isPublic: false so the owner can review before sharing.
+ * Returns the new document ID.
+ */
+export async function duplicateResume(
+  resumeId: string,
+  userId: string
+): Promise<string> {
+  const original = await getResume(resumeId);
+  if (!original) throw new Error(`Resume ${resumeId} not found`);
+
+  // Strip server-managed and export-specific fields so they don't carry over
+  const {
+    id: _id,
+    userId: _userId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    pdfUrl: _pdfUrl,
+    lastExportedAt: _lastExportedAt,
+    ...contentFields
+  } = original;
+
+  const ref = await addDoc(collection(db, COL), {
+    ...contentFields,
+    userId,
+    title: `${original.title?.trim() || "Untitled"} (Copy)`,
+    status: "draft",
+    isPublic: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return ref.id;
+}
