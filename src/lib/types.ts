@@ -17,6 +17,8 @@ export interface Resume {
   pdfUrl?: string;
   /** Timestamp of the most recent PDF export */
   lastExportedAt?: any;
+  /** Whether this resume is publicly viewable via a share link */
+  isPublic?: boolean;
 }
 
 export type ResumeFormData = Omit<Resume, "id" | "userId" | "createdAt" | "updatedAt">;

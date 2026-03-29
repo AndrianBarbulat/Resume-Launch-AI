@@ -65,7 +65,7 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
        * scaled paper. This sets the wrapper's scroll area correctly, so the
        * browser knows the actual scrollable extent.
        */}
-      <div style={{ width: renderedW, height: renderedH, position: "relative" }}>
+      <div data-flow-sizer style={{ width: renderedW, height: renderedH, position: "relative" }}>
         {/*
          * Paper: absolutely positioned so it doesn't double-count layout space.
          * Rendered at natural PAPER_W × PAPER_H, then CSS-transformed to
@@ -73,6 +73,7 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
          * of the sizer, perfectly overlaying it.
          */}
         <div
+          data-paper
           style={{
             position: "absolute",
             top: 0,

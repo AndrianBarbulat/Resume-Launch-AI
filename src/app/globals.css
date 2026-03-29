@@ -31,3 +31,54 @@ body {
 .animate-slide-in {
   animation: slide-in 0.2s ease-out forwards;
 }
+
+/* ── Print styles ──────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide all UI chrome */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the marked resume area */
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Remove decorative chrome from the resume container */
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Reset CSS transform scaling so the resume prints at natural A4 size */
+  .print-area [data-flow-sizer] {
+    width: 100% !important;
+    height: auto !important;
+    position: static !important;
+  }
+
+  .print-area [data-paper] {
+    transform: none !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+}

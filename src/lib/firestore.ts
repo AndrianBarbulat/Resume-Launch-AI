@@ -65,3 +65,31 @@ export async function updateResumePDFUrl(
   const ref = doc(db, COL, resumeId);
   await updateDoc(ref, { pdfUrl, lastExportedAt: serverTimestamp() });
 }
+
+/**
+ * Set or revoke the public share flag for a resume.
+ * NOTE: Firestore security rules must allow unauthenticated reads when
+ * `isPublic == true`. Example rule:
+ *   allow read: if resource.data.isPublic == true
+ *               || request.auth.uid == resource.data.userId;
+ */
+export async function toggleResumePublic(
+  resumeId: string,
+  isPublic: boolean
+): Promise<void> {
+  const ref = doc(db, COL, resumeId);
+  await updateDoc(ref, { isPublic, updatedAt: serverTimestamp() });
+}
+
+/**
+ * Fetch a resume by ID only if it has isPublic: true.
+ * Returns null when the document doesn't exist or isn't public —
+ * callers must not expose private data on this return value.
+ */
+export async function getPublicResume(
+  resumeId: string
+): Promise<Resume | null> {
+  const data = await getResume(resumeId);
+  if (!data || !data.isPublic) return null;
+  return data;
+}

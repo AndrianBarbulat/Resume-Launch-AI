@@ -13,6 +13,8 @@ import { templates } from "@/lib/templates";
 import PDFRenderContainer from "@/components/preview/PDFRenderContainer";
 import ResumePreview from "@/components/preview/ResumePreview";
 import ZoomControls from "@/components/preview/ZoomControls";
+import PrintButton from "@/components/preview/PrintButton";
+import ShareButton from "@/components/preview/ShareButton";
 
 // ─── Page wrapper ─────────────────────────────────────────────────────────────
 
@@ -139,7 +141,7 @@ function PreviewContent({ resumeId }: { resumeId: string }) {
     <div className="flex-1 flex flex-col bg-slate-950 min-h-screen">
 
       {/* ── Action bar ────────────────────────────────────────────────────── */}
-      <div className="sticky top-16 z-40 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3">
+      <div className="no-print sticky top-16 z-40 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3">
         <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-3">
 
           {/* Back link */}
@@ -177,6 +179,17 @@ function PreviewContent({ resumeId }: { resumeId: string }) {
           <div className="hidden sm:block">
             <ZoomControls zoom={zoom} onChange={setZoom} />
           </div>
+
+          {/* Print */}
+          <PrintButton />
+
+          {/* Share Link */}
+          <ShareButton
+            resumeId={resumeId}
+            isPublic={resume.isPublic ?? false}
+            onToggle={(val) => setResume((prev) => prev ? { ...prev, isPublic: val } : prev)}
+            showToast={showToast}
+          />
 
           {/* Save to Cloud */}
           <button
@@ -223,7 +236,10 @@ function PreviewContent({ resumeId }: { resumeId: string }) {
       {/* ── Preview area ──────────────────────────────────────────────────── */}
       <div className="flex-1 bg-gray-100 py-8 px-4">
         <div className="max-w-3xl mx-auto">
-          <ResumePreview resume={resumeForPreview} zoom={zoom} />
+          {/* print-area: this div becomes the sole visible element during print */}
+          <div className="print-area">
+            <ResumePreview resume={resumeForPreview} zoom={zoom} />
+          </div>
         </div>
       </div>
 
@@ -237,7 +253,7 @@ function PreviewContent({ resumeId }: { resumeId: string }) {
           aria-live="polite"
           className={[
             "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl",
-            "text-sm font-medium flex items-center gap-2 transition-all",
+            "text-sm font-medium flex items-center gap-2 transition-all no-print",
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white",
