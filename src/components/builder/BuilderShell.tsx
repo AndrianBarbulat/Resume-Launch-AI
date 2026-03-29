@@ -14,6 +14,7 @@ import EducationForm from "@/components/builder/EducationForm";
 import SkillsForm from "@/components/builder/SkillsForm";
 import ProjectsForm from "@/components/builder/ProjectsForm";
 import ReviewStep from "@/components/builder/ReviewStep";
+import ResumePreview from "@/components/preview/ResumePreview";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -140,6 +141,8 @@ export default function BuilderShell({
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
+  // Mobile: toggle between form and preview
+  const [mobileView, setMobileView] = useState<"form" | "preview">("form");
 
   // Refs for stable access inside the interval callback
   const dirtyRef = useRef(false);
@@ -344,90 +347,155 @@ export default function BuilderShell({
   return (
     // Intercept Enter on single-line inputs to prevent accidental navigation
     <div
-      className="flex-1 bg-slate-950 py-10"
+      className="flex-1 bg-slate-950"
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
           e.preventDefault();
         }
       }}
     >
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">
-            {mode === "edit" ? "Edit Resume" : "Build Your Resume"}
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {mode === "edit"
-              ? "Update your resume details, then save."
-              : "Complete each step to create your resume."}
-          </p>
-        </div>
+      <div className="lg:flex lg:items-start">
 
-        {/* Step progress */}
-        <StepProgress
-          steps={STEPS}
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          onStepClick={handleStepClick}
-        />
+        {/* ── Left panel: form ─────────────────────────────────────────────── */}
+        <div
+          className={[
+            "lg:w-1/2 lg:block py-10",
+            // On mobile: show only when in form view; add bottom padding for the toggle button
+            mobileView === "preview" ? "hidden" : "block",
+            "pb-24 lg:pb-10",
+          ].join(" ")}
+        >
+          <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Page header */}
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-white">
+                {mode === "edit" ? "Edit Resume" : "Build Your Resume"}
+              </h1>
+              <p className="text-slate-400 text-sm mt-1">
+                {mode === "edit"
+                  ? "Update your resume details, then save."
+                  : "Complete each step to create your resume."}
+              </p>
+            </div>
 
-        {/* Draft save indicator — fixed height prevents layout shift */}
-        <div className="flex justify-end items-center mt-1.5 h-5">
-          {autoSaving ? (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500">
-              <span className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
-              Saving draft…
-            </span>
-          ) : draftLabel ? (
-            <span className="text-xs text-slate-600">{draftLabel}</span>
-          ) : null}
-        </div>
+            {/* Step progress */}
+            <StepProgress
+              steps={STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={handleStepClick}
+            />
 
-        {/* Step card */}
-        <div className="mt-3 bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/30 min-h-64">
-          {renderStep()}
-        </div>
+            {/* Draft save indicator — fixed height prevents layout shift */}
+            <div className="flex justify-end items-center mt-1.5 h-5">
+              {autoSaving ? (
+                <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                  Saving draft…
+                </span>
+              ) : draftLabel ? (
+                <span className="text-xs text-slate-600">{draftLabel}</span>
+              ) : null}
+            </div>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-6">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className="inline-flex items-center gap-2 text-sm font-medium px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 disabled:opacity-0 disabled:pointer-events-none transition-colors"
-          >
-            <ArrowLeftIcon />
-            Back
-          </button>
+            {/* Step card */}
+            <div className="mt-3 bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/30 min-h-64">
+              {renderStep()}
+            </div>
 
-          {isLastStep ? (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/40"
-            >
-              {saving ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent" />
-                  Saving…
-                </>
+            {/* Navigation */}
+            <div className="flex items-center justify-between mt-6">
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={currentStep === 0}
+                className="inline-flex items-center gap-2 text-sm font-medium px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 disabled:opacity-0 disabled:pointer-events-none transition-colors"
+              >
+                <ArrowLeftIcon />
+                Back
+              </button>
+
+              {isLastStep ? (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/40"
+                >
+                  {saving ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save Resume"
+                  )}
+                </button>
               ) : (
-                "Save Resume"
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/40"
+                >
+                  Continue
+                  <ArrowRightIcon />
+                </button>
               )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/40"
-            >
-              Continue
-              <ArrowRightIcon />
-            </button>
-          )}
+            </div>
+          </div>
         </div>
+
+        {/* ── Right panel: preview ─────────────────────────────────────────── */}
+        <div
+          className={[
+            // Desktop: sticky sidebar, full viewport height minus navbar (h-16 = 4rem)
+            "lg:w-1/2 lg:block lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto",
+            // Background
+            "bg-gray-100",
+            // Mobile: show only when in preview view, full height
+            mobileView === "form" ? "hidden" : "block min-h-screen",
+            // Mobile top padding for the toggle button clearance (bottom)
+            "pb-24 lg:pb-0",
+          ].join(" ")}
+        >
+          {/* Inner: centre the paper with padding */}
+          <div className="p-6 lg:p-8">
+            {/* Preview label — desktop only */}
+            <div className="hidden lg:flex items-center justify-between mb-4">
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                Live Preview
+              </span>
+              <span className="text-xs text-gray-400 capitalize">
+                {formData.template} template
+              </span>
+            </div>
+
+            <ResumePreview resume={formData} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile toggle button ─────────────────────────────────────────────── */}
+      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <button
+          type="button"
+          onClick={() =>
+            setMobileView((v) => (v === "form" ? "preview" : "form"))
+          }
+          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-lg shadow-indigo-900/50 transition-colors"
+        >
+          {mobileView === "form" ? (
+            <>
+              <EyeIcon />
+              Preview
+            </>
+          ) : (
+            <>
+              <PencilIcon />
+              Edit
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
@@ -468,6 +536,50 @@ function ArrowRightIcon() {
         strokeLinejoin="round"
         strokeWidth={2}
         d="M9 5l7 7-7 7"
+      />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
       />
     </svg>
   );
