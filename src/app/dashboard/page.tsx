@@ -19,6 +19,7 @@ import ResumeListItem from "@/components/dashboard/ResumeListItem";
 import SkeletonCard from "@/components/dashboard/SkeletonCard";
 import DeleteModal from "@/components/dashboard/DeleteModal";
 import EmptyState from "@/components/dashboard/EmptyState";
+import ErrorMessage from "@/components/ErrorMessage";
 import DashboardControls, {
   type SortKey,
   type FilterKey,
@@ -47,6 +48,7 @@ function DashboardContent() {
   // Data
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   // Controls — raw search drives the input; debounced search drives filtering
   const [rawSearch, setRawSearch] = useState("");
@@ -92,9 +94,10 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!user) return;
+    setFetchError(false);
     getUserResumes(user.uid)
       .then(setResumes)
-      .catch(() => setResumes([]))
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -206,11 +209,28 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* ── Fetch error ──────────────────────────────────────────────────── */}
+        {!loading && fetchError && (
+          <ErrorMessage
+            title="Failed to load resumes"
+            message="We couldn't load your resumes. Please check your connection and try again."
+            onRetry={() => {
+              if (!user) return;
+              setLoading(true);
+              setFetchError(false);
+              getUserResumes(user.uid)
+                .then(setResumes)
+                .catch(() => setFetchError(true))
+                .finally(() => setLoading(false));
+            }}
+          />
+        )}
+
         {/* ── Loaded: empty state (no resumes at all) ──────────────────────── */}
-        {!loading && resumes.length === 0 && <EmptyState />}
+        {!loading && !fetchError && resumes.length === 0 && <EmptyState />}
 
         {/* ── Loaded: resumes exist ────────────────────────────────────────── */}
-        {!loading && resumes.length > 0 && (
+        {!loading && !fetchError && resumes.length > 0 && (
           <>
             {/* Stats */}
             <StatsCards resumes={resumes} />

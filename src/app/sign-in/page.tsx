@@ -15,8 +15,10 @@ const FIREBASE_ERRORS: Record<string, string> = {
   "auth/wrong-password": "Incorrect email or password.",
   "auth/user-not-found": "Incorrect email or password.",
   "auth/too-many-requests": "Too many attempts. Please try again later.",
-  "auth/popup-blocked": "Popup was blocked. Please allow popups for this site.",
-  "auth/popup-closed-by-user": "", // silent
+  "auth/network-request-failed": "Network error. Please check your connection.",
+  "auth/popup-blocked": "Pop-up was blocked. Please allow pop-ups for this site.",
+  "auth/popup-closed-by-user": "", // silent — user dismissed intentionally
+  "auth/cancelled-popup-request": "", // silent — superseded by a newer popup
 };
 
 export default function SignInPage() {
