@@ -12,9 +12,32 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ResuLaunchAI — Build Your Resume with AI",
+  title: {
+    default: "ResuLaunchAI — Free AI Resume Builder",
+    template: "%s | ResuLaunchAI",
+  },
   description:
-    "AI-powered resume builder that helps you create professional, ATS-friendly resumes in minutes.",
+    "Build professional, ATS-friendly resumes in minutes with AI. Free forever. Choose from 3 templates, get AI-powered content suggestions, and export as PDF.",
+  keywords: [
+    "resume builder",
+    "AI resume",
+    "free resume maker",
+    "ATS resume",
+    "professional resume",
+  ],
+  authors: [{ name: "ResuLaunchAI" }],
+  openGraph: {
+    title: "ResuLaunchAI — Free AI Resume Builder",
+    description: "Create professional resumes with AI. Free forever.",
+    url: "https://resulaunchai.vercel.app",
+    siteName: "ResuLaunchAI",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ResuLaunchAI — Free AI Resume Builder",
+    description: "Create professional resumes with AI. Free forever.",
+  },
 };
 
 export default function RootLayout({
