@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export interface Resume {
   id: string;
   userId: string;
@@ -11,12 +13,12 @@ export interface Resume {
   skills: string[];
   projects: Project[];
   projectsEnabled: boolean;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
   /** Firebase Storage download URL — set after first cloud export */
   pdfUrl?: string;
   /** Timestamp of the most recent PDF export */
-  lastExportedAt?: any;
+  lastExportedAt?: Timestamp | null;
   /** Whether this resume is publicly viewable via a share link */
   isPublic?: boolean;
 }
