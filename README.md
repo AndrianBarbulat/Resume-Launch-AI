@@ -2,7 +2,7 @@
 
 An AI-powered resume builder built with Next.js, TypeScript, Firebase, and Google Gemini AI. Create professional, ATS-friendly resumes in minutes completely free.
 
-**Live Demo:** [resulaunchai.vercel.app](https://resulaunchai.vercel.app)
+**Live Demo:** [https://resume-launch-ai-tau.vercel.app/](https://resume-launch-ai-tau.vercel.app/)
 
 ---
 
@@ -96,7 +96,7 @@ npm run build
 
 ## Deployment
 
-### Vercel (recommended)
+### Vercel (https://resume-launch-ai-tau.vercel.app/)
 
 1. Push to GitHub
 2. Import the repo at [vercel.com/new](https://vercel.com/new)
