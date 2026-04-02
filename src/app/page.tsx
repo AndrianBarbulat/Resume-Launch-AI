@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 const features = [
@@ -8,25 +10,25 @@ const features = [
     icon: "✦",
     title: "AI-Powered Content",
     description:
-      "Our AI writes professional summaries, improves your bullet points, and suggests relevant skills — all with one click.",
+      "Stuck on what to write? Hit the AI button and Gemini will generate a professional summary, improve your bullet points, or suggest skills relevant to your role. It's not perfect every time, but it gives you a solid starting point.",
   },
   {
     icon: "▤",
     title: "3 Professional Templates",
     description:
-      "Choose from Modern, Classic, or Minimal templates. See your resume update in real-time as you type.",
+      "Pick from Modern (two-column sidebar), Classic (traditional single-column), or Minimal (clean whitespace). The live preview updates as you type so you can see exactly how your resume will look.",
   },
   {
     icon: "⬇",
     title: "Export & Share",
     description:
-      "Download as a high-quality PDF, save to the cloud, or share a public link with anyone — instantly.",
+      "Download your resume as a high-quality PDF, save it to the cloud, or generate a public link you can share with anyone. Your data stays in your Firebase account.",
   },
   {
     icon: "◈",
-    title: "Free Forever",
+    title: "Free & Open Source",
     description:
-      "No hidden costs, no premium tiers. Create unlimited resumes with full AI features at no charge.",
+      "This project was built as a learning exercise and portfolio piece. There are no hidden costs, no premium plans, and no data selling. It's free to use and the code is available on GitHub.",
   },
 ];
 
@@ -35,40 +37,65 @@ const steps = [
     number: "01",
     title: "Fill in your details",
     description:
-      "Enter your experience, education, and skills through our guided multi-step form.",
+      "Walk through a guided form — personal info, experience, education, skills.",
   },
   {
     number: "02",
-    title: "Let AI enhance it",
+    title: "Let AI help",
     description:
-      "Our AI improves your content, suggests skills, and writes professional summaries tailored to your background.",
+      "Click the AI buttons to generate summaries, improve bullet points, and get skill suggestions.",
   },
   {
     number: "03",
-    title: "Download & share",
+    title: "Export your resume",
     description:
-      "Export your polished resume as a PDF or share it with a public link — ready for any application.",
+      "Pick a template, preview it live, then download as PDF or share a link.",
   },
 ];
 
-const stats = [
-  { value: "10,000+", label: "Resumes Created" },
-  { value: "3", label: "Professional Templates" },
-  { value: "100%", label: "Free Forever" },
+const techStack = [
+  {
+    name: "Next.js + TypeScript",
+    description: "Built with the framework companies are hiring for",
+  },
+  {
+    name: "Google Gemini AI",
+    description: "Free AI that writes and improves your content",
+  },
+  {
+    name: "Firebase",
+    description: "Secure auth, real-time database, and cloud storage",
+  },
+  {
+    name: "100% Free",
+    description: "No paywalls, no premium tiers, no catch",
+  },
 ];
 
 export default function HomePage() {
   const { user, authReady } = useAuth();
-  const ctaHref = authReady && user ? "/dashboard" : "/sign-in";
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authReady && user) {
+      router.replace("/dashboard");
+    }
+  }, [authReady, user, router]);
+
+  if (!authReady || (authReady && user)) {
+    return (
+      <div className="flex flex-1 items-center justify-center min-h-[80vh]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col flex-1">
       {/* Hero */}
       <section className="relative overflow-hidden px-4 py-28 sm:py-40">
-        {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-950" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent)]" />
-        {/* Floating blobs */}
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl animate-pulse" />
         <div
           className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-600/8 rounded-full blur-3xl animate-pulse"
@@ -100,7 +127,7 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <Link
-                  href={ctaHref}
+                  href="/sign-in"
                   className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 hover:-translate-y-0.5"
                 >
                   Get Started Free
@@ -130,11 +157,8 @@ export default function HomePage() {
             {/* Right — resume builder mockup */}
             <div className="flex-1 w-full max-w-lg lg:max-w-none">
               <div className="relative mx-auto max-w-md lg:max-w-full">
-                {/* Glow behind card */}
                 <div className="absolute -inset-4 bg-indigo-600/10 rounded-3xl blur-2xl" />
-                {/* Outer shell */}
                 <div className="relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                  {/* Fake browser chrome */}
                   <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-800/80 border-b border-slate-700/60">
                     <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
                     <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
@@ -143,9 +167,7 @@ export default function HomePage() {
                       resulaunchai.vercel.app/builder
                     </div>
                   </div>
-                  {/* Content: two-panel layout */}
                   <div className="flex divide-x divide-slate-800 min-h-[260px]">
-                    {/* Form panel */}
                     <div className="flex-1 p-4 space-y-3">
                       <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
                         Your Details
@@ -180,7 +202,6 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
-                    {/* Preview panel */}
                     <div className="flex-1 p-4 bg-white/[0.02]">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
                         Preview
@@ -255,19 +276,15 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Steps — horizontal desktop / vertical mobile */}
           <div className="relative flex flex-col lg:flex-row gap-8 lg:gap-0">
             {steps.map((step, i) => (
               <div key={step.number} className="flex-1 flex flex-col lg:items-center relative">
-                {/* Connector line (desktop) */}
                 {i < steps.length - 1 && (
                   <div className="hidden lg:block absolute top-7 left-[calc(50%+2.5rem)] right-[calc(-50%+2.5rem)] h-px bg-gradient-to-r from-indigo-800/60 to-indigo-800/20" />
                 )}
-                {/* Connector line (mobile) */}
                 {i < steps.length - 1 && (
                   <div className="lg:hidden absolute left-7 top-14 bottom-0 w-px bg-gradient-to-b from-indigo-800/60 to-transparent h-8" />
                 )}
-
                 <div className="flex lg:flex-col items-start lg:items-center gap-5 lg:gap-4 lg:text-center">
                   <div className="shrink-0 w-14 h-14 rounded-2xl bg-indigo-600/15 border border-indigo-600/30 flex items-center justify-center">
                     <span className="text-indigo-400 font-bold text-lg">
@@ -289,19 +306,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* About / Tech Stack */}
       <section className="py-20 px-4 bg-slate-950 border-y border-slate-800/60">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-slate-500 text-sm uppercase tracking-widest font-medium mb-12">
-            Trusted by job seekers worldwide
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-5">
+            A Personal Project, Built to Impress
+          </h2>
+          <p className="text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+            ResuLaunchAI started as a portfolio project to explore the power of AI
+            in everyday tools. It&apos;s fully open source, completely free, and built
+            with a modern tech stack. Whether you&apos;re a job seeker who needs a quick
+            resume or a developer curious about AI integration — feel free to use it,
+            fork it, or build on top of it.
           </p>
-          <div className="grid grid-cols-3 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label}>
-                <p className="text-3xl sm:text-4xl font-bold text-white mb-1">
-                  {stat.value}
-                </p>
-                <p className="text-slate-400 text-sm">{stat.label}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {techStack.map((item) => (
+              <div
+                key={item.name}
+                className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-left"
+              >
+                <p className="text-white font-semibold text-sm mb-1">{item.name}</p>
+                <p className="text-slate-400 text-xs leading-relaxed">{item.description}</p>
               </div>
             ))}
           </div>
@@ -312,14 +337,14 @@ export default function HomePage() {
       <section className="py-28 px-4 bg-gradient-to-b from-slate-950 via-indigo-950/20 to-slate-950">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-5">
-            Ready to build your resume?
+            Want to give it a try?
           </h2>
           <p className="text-slate-400 mb-10 text-lg">
-            Join thousands of job seekers who've already landed their dream jobs
-            with ResuLaunchAI.
+            It takes about 5 minutes to build a resume. No account setup beyond
+            Google Sign-In.
           </p>
           <Link
-            href={ctaHref}
+            href="/sign-in"
             className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-10 py-4 rounded-xl text-base transition-all shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 hover:-translate-y-0.5"
           >
             Get Started Free

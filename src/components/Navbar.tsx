@@ -21,12 +21,14 @@ export default function Navbar() {
 
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-6">
-            <Link
-              href="/"
-              className="text-slate-300 hover:text-white text-sm font-medium transition-colors"
-            >
-              Home
-            </Link>
+            {authReady && !user && (
+              <Link
+                href="/"
+                className="text-slate-300 hover:text-white text-sm font-medium transition-colors"
+              >
+                Home
+              </Link>
+            )}
             {authReady && user && (
               <Link
                 href="/dashboard"
@@ -91,13 +93,15 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-900 px-4 py-4 space-y-3">
-          <Link
-            href="/"
-            onClick={() => setMenuOpen(false)}
-            className="block text-slate-300 hover:text-white text-sm font-medium transition-colors py-1"
-          >
-            Home
-          </Link>
+          {authReady && !user && (
+            <Link
+              href="/"
+              onClick={() => setMenuOpen(false)}
+              className="block text-slate-300 hover:text-white text-sm font-medium transition-colors py-1"
+            >
+              Home
+            </Link>
+          )}
           {authReady && user && (
             <Link
               href="/dashboard"

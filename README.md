@@ -1,14 +1,22 @@
 # ResuLaunchAI
 
-An AI-powered resume builder built with Next.js, TypeScript, Firebase, and Google Gemini AI. Create professional, ATS-friendly resumes in minutes — completely free.
+An AI-powered resume builder built with Next.js, TypeScript, Firebase, and Google Gemini AI. Create professional, ATS-friendly resumes in minutes completely free.
 
 **Live Demo:** [resulaunchai.vercel.app](https://resulaunchai.vercel.app)
 
 ---
 
+## Screenshots
+
+![Landing Page](projectImagesDisplay/001.png)
+![Sign In](projectImagesDisplay/002.png)
+![Dashboard](projectImagesDisplay/003.png)
+![Resume Builder](projectImagesDisplay/004.png)
+![Resume Preview](projectImagesDisplay/005.png)
+
 ## Features
 
-- AI-powered content generation — summaries, bullet points, and skill suggestions
+- AI-powered content generation summaries, bullet points, and skill suggestions
 - 3 professional resume templates: Modern, Classic, and Minimal
 - Real-time live preview as you type
 - PDF export and download (html2canvas + jsPDF)
@@ -59,7 +67,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_FIREBASE_*` | Firebase Console → Project Settings → Your Apps |
 | `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 
-> `GEMINI_API_KEY` is server-side only — it is never exposed to the browser.
+> `GEMINI_API_KEY` is server-side only it is never exposed to the browser.
 
 ### Development
 
@@ -93,7 +101,7 @@ npm run build
 1. Push to GitHub
 2. Import the repo at [vercel.com/new](https://vercel.com/new)
 3. Add all environment variables from `.env.local` in the Vercel dashboard
-4. Deploy — Vercel auto-detects Next.js settings
+4. Deploy Vercel auto-detects Next.js settings
 
 ### Pre-Deployment Checklist
 

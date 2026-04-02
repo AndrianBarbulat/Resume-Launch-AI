@@ -48,7 +48,7 @@ function DashboardContent() {
   // Data
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Controls — raw search drives the input; debounced search drives filtering
   const [rawSearch, setRawSearch] = useState("");
@@ -94,10 +94,13 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!user) return;
-    setFetchError(false);
+    setFetchError(null);
     getUserResumes(user.uid)
       .then(setResumes)
-      .catch(() => setFetchError(true))
+      .catch((err) => {
+        console.error("getUserResumes failed:", err);
+        setFetchError(err?.message ?? "Unknown error");
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -213,14 +216,17 @@ function DashboardContent() {
         {!loading && fetchError && (
           <ErrorMessage
             title="Failed to load resumes"
-            message="We couldn't load your resumes. Please check your connection and try again."
+            message={fetchError ?? "We couldn't load your resumes. Please check your connection and try again."}
             onRetry={() => {
               if (!user) return;
               setLoading(true);
-              setFetchError(false);
+              setFetchError(null);
               getUserResumes(user.uid)
                 .then(setResumes)
-                .catch(() => setFetchError(true))
+                .catch((err) => {
+                  console.error("getUserResumes failed:", err);
+                  setFetchError(err?.message ?? "Unknown error");
+                })
                 .finally(() => setLoading(false));
             }}
           />
