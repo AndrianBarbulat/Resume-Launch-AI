@@ -40,7 +40,7 @@ export async function generatePDF(
 ): Promise<PDFResult> {
   // Lazy-load browser-only libraries — never runs on the server
   const html2canvas = (await import("html2canvas")).default;
-  const { jsPDF } = await import("jspdf");
+  const jsPDF = (await import("jspdf")).default;
 
   // Wait for fonts to finish loading so text renders correctly
   if (typeof document !== "undefined" && document.fonts) {
