@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Education, ResumeFormData } from "@/lib/types";
+import { useToast } from "@/context/ToastContext";
+import AIButton from "@/components/builder/AIButton";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,18 +13,33 @@ interface EducationFormProps {
   errors: Record<string, string>;
 }
 
+interface EducationAIState {
+  loading: boolean;
+  previousDescription: string | null;
+  showUndo: boolean;
+}
+
 interface CardProps {
   entry: Education;
   index: number;
   expanded: boolean;
   confirmingDelete: boolean;
   errors: Record<string, string>;
+  entryAI: EducationAIState;
   onToggle: () => void;
   onUpdate: (updates: Partial<Education>) => void;
   onDeleteRequest: () => void;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
+  onImproveDesc: () => void;
+  onUndoDesc: () => void;
 }
+
+const DEFAULT_AI: EducationAIState = {
+  loading: false,
+  previousDescription: null,
+  showUndo: false,
+};
 
 // ─── Root component ────────────────────────────────────────────────────────────
 
@@ -31,8 +48,19 @@ export default function EducationForm({
   onUpdate,
   errors,
 }: EducationFormProps) {
+  const { showToast } = useToast();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [aiState, setAiState] = useState<Record<string, EducationAIState>>({});
+  const undoTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clean up all timers on unmount
+  useEffect(() => {
+    const timers = undoTimers.current;
+    return () => {
+      for (const t of timers.values()) clearTimeout(t);
+    };
+  }, []);
 
   function addEntry() {
     const id = crypto.randomUUID();
@@ -67,6 +95,123 @@ export default function EducationForm({
     });
   }
 
+  // ── Improve education description ────────────────────────────────────────
+
+  async function handleImproveDescription(id: string) {
+    const entry = data.find((e) => e.id === id);
+    if (!entry) return;
+
+    const originalDesc = entry.description ?? "";
+
+    // Clear any existing undo timer for this entry
+    const existing = undoTimers.current.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id);
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: {
+        loading: true,
+        previousDescription: originalDesc,
+        showUndo: false,
+      },
+    }));
+
+    try {
+      const res = await fetch("/api/ai/improve-education", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          institution: entry.institution,
+          degree: entry.degree,
+          field: entry.field,
+          existingDescription: originalDesc,
+        }),
+      });
+
+      if (res.status === 429) {
+        showToast("You're generating too fast. Please wait a moment.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], loading: false, previousDescription: null, showUndo: false },
+        }));
+        return;
+      }
+
+      if (!res.ok) {
+        showToast("Failed to generate description. Try again.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], loading: false, previousDescription: null, showUndo: false },
+        }));
+        return;
+      }
+
+      const json = await res.json();
+      const generated: string = json.description ?? "";
+
+      // Update the entry description and ensure it is visible
+      onUpdate({
+        education: data.map((e) =>
+          e.id === id ? { ...e, description: generated } : e
+        ),
+      });
+      setExpandedIds((prev) => new Set([...prev, id]));
+
+      // Show undo button
+      setAiState((prev) => ({
+        ...prev,
+        [id]: {
+          loading: false,
+          previousDescription: originalDesc,
+          showUndo: true,
+        },
+      }));
+
+      // Auto-hide undo after 10s
+      const timer = setTimeout(() => {
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], showUndo: false, previousDescription: null },
+        }));
+        undoTimers.current.delete(id);
+      }, 10_000);
+      undoTimers.current.set(id, timer);
+
+      showToast("Description generated!", "success");
+    } catch {
+      showToast("Failed to generate description. Try again.", "error");
+      setAiState((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], loading: false, previousDescription: null, showUndo: false },
+      }));
+    }
+  }
+
+  function handleUndoDescription(id: string) {
+    const state = aiState[id];
+    if (state?.previousDescription === null || state?.previousDescription === undefined) return;
+
+    onUpdate({
+      education: data.map((e) =>
+        e.id === id ? { ...e, description: state.previousDescription ?? "" } : e
+      ),
+    });
+
+    const existing = undoTimers.current.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id);
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], showUndo: false, previousDescription: null },
+    }));
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,11 +230,14 @@ export default function EducationForm({
             expanded={expandedIds.has(entry.id)}
             confirmingDelete={deleteConfirm === entry.id}
             errors={errors}
+            entryAI={aiState[entry.id] ?? DEFAULT_AI}
             onToggle={() => toggleExpanded(entry.id)}
             onUpdate={(updates) => updateEntry(entry.id, updates)}
             onDeleteRequest={() => setDeleteConfirm(entry.id)}
             onDeleteConfirm={() => removeEntry(entry.id)}
             onDeleteCancel={() => setDeleteConfirm(null)}
+            onImproveDesc={() => handleImproveDescription(entry.id)}
+            onUndoDesc={() => handleUndoDescription(entry.id)}
           />
         ))}
       </div>
@@ -114,13 +262,15 @@ function EducationCard({
   expanded,
   confirmingDelete,
   errors,
+  entryAI,
   onToggle,
   onUpdate,
   onDeleteRequest,
   onDeleteConfirm,
   onDeleteCancel,
+  onImproveDesc,
+  onUndoDesc,
 }: CardProps) {
-  // Derive a readable header from current field values
   const parts = [entry.degree, entry.institution].filter(Boolean);
   const headerLabel =
     parts.length > 0 ? parts.join(" — ") : `Education ${index + 1}`;
@@ -128,6 +278,20 @@ function EducationCard({
   const institutionErr = errors[`edu_${index}_institution`];
   const degreeErr = errors[`edu_${index}_degree`];
   const fieldErr = errors[`edu_${index}_field`];
+
+  const [showDescription, setShowDescription] = useState(
+    () => Boolean(entry.description)
+  );
+
+  // When AI generates a description, auto-expand the textarea so it's visible
+  useEffect(() => {
+    if ((entry.description ?? "").trim()) {
+      setShowDescription(true);
+    }
+  }, [entry.description]);
+
+  const hasDescription = (entry.description ?? "").trim().length > 0;
+  const descAILabel = hasDescription ? "Improve Description" : "Generate Description";
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/40 shadow-sm hover:border-slate-600 transition-colors overflow-hidden">
@@ -289,6 +453,79 @@ function EducationCard({
                 />
               </div>
             </div>
+
+            {/* ── Description (optional) ─────────────────────────────────── */}
+            {showDescription ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor={`edu-desc-${entry.id}`}
+                    className="text-xs font-semibold text-slate-300"
+                  >
+                    Description{" "}
+                    <span className="text-slate-500 font-normal">(optional)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdate({ description: "" });
+                      setShowDescription(false);
+                    }}
+                    className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <textarea
+                  id={`edu-desc-${entry.id}`}
+                  rows={3}
+                  value={entry.description ?? ""}
+                  onChange={(e) => onUpdate({ description: e.target.value })}
+                  disabled={entryAI.loading}
+                  placeholder="Briefly describe your course of study, key areas, and academic achievements…"
+                  className={`w-full bg-slate-800 border text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors resize-none ${
+                    entryAI.loading
+                      ? "opacity-40 border-slate-700"
+                      : "border-slate-700"
+                  }`}
+                />
+
+                {/* Description AI actions row */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                  <AIButton
+                    label={descAILabel}
+                    onClick={onImproveDesc}
+                    loading={entryAI.loading}
+                  />
+
+                  {entryAI.showUndo && (
+                    <button
+                      type="button"
+                      onClick={onUndoDesc}
+                      className="text-xs text-slate-400 hover:text-white transition-colors underline underline-offset-2"
+                    >
+                      ↩ Undo
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDescription(true)}
+                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  + Add description
+                </button>
+
+                <AIButton
+                  label="Generate Description"
+                  onClick={onImproveDesc}
+                  loading={entryAI.loading}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

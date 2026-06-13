@@ -9,6 +9,7 @@ import AIButton from "@/components/builder/AIButton";
 
 interface ExperienceFormProps {
   data: Experience[];
+  skills: string[];
   onUpdate: (updates: Partial<ResumeFormData>) => void;
   errors: Record<string, string>;
 }
@@ -18,6 +19,10 @@ interface EntryAIState {
   previousBullets: string[] | null;
   showUndo: boolean;
   aiEnhanced: boolean;
+  descLoading: boolean;
+  previousDescription: string | null;
+  showDescUndo: boolean;
+  descEnhanced: boolean;
 }
 
 interface CardProps {
@@ -36,12 +41,46 @@ interface CardProps {
   onDeleteCancel: () => void;
   onImprove: () => void;
   onUndo: () => void;
+  onGenerateDesc: () => void;
+  onUndoDesc: () => void;
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const DEFAULT_AI: EntryAIState = {
+  loading: false,
+  previousBullets: null,
+  showUndo: false,
+  aiEnhanced: false,
+  descLoading: false,
+  previousDescription: null,
+  showDescUndo: false,
+  descEnhanced: false,
+};
+
+/**
+ * Merge suggested skills into the existing skills array.
+ * Deduplicates case-insensitively. Returns the merged array and a count of new skills added.
+ */
+function mergeSkills(
+  existing: string[],
+  suggested: string[],
+): { merged: string[]; addedCount: number } {
+  const existingLower = new Set(existing.map((s) => s.toLowerCase()));
+  const newSkills = suggested.filter(
+    (s) => !existingLower.has(s.toLowerCase()),
+  );
+  return {
+    merged: [...existing, ...newSkills],
+    addedCount: newSkills.length,
+  };
 }
 
 // ─── Root component ────────────────────────────────────────────────────────────
 
 export default function ExperienceForm({
   data,
+  skills,
   onUpdate,
   errors,
 }: ExperienceFormProps) {
@@ -58,6 +97,8 @@ export default function ExperienceForm({
       for (const t of timers.values()) clearTimeout(t);
     };
   }, []);
+
+  // ── Entry CRUD ───────────────────────────────────────────────────────────
 
   function addEntry() {
     const id = crypto.randomUUID();
@@ -101,6 +142,8 @@ export default function ExperienceForm({
     onUpdate({ experience: next });
   }
 
+  // ── Improve bullets (existing) ───────────────────────────────────────────
+
   async function handleImproveBullets(id: string) {
     const entry = data.find((e) => e.id === id);
     if (!entry) return;
@@ -117,6 +160,8 @@ export default function ExperienceForm({
     setAiState((prev) => ({
       ...prev,
       [id]: {
+        ...DEFAULT_AI,
+        ...prev[id],
         loading: true,
         previousBullets: originalBullets,
         showUndo: false,
@@ -132,6 +177,10 @@ export default function ExperienceForm({
           role: entry.role,
           company: entry.company,
           bullets: entry.bullets,
+          description: entry.description,
+          startDate: entry.startDate || undefined,
+          endDate: entry.endDate || undefined,
+          current: entry.current,
         }),
       });
 
@@ -139,12 +188,7 @@ export default function ExperienceForm({
         showToast("You're generating too fast. Please wait a moment.", "error");
         setAiState((prev) => ({
           ...prev,
-          [id]: {
-            loading: false,
-            previousBullets: null,
-            showUndo: false,
-            aiEnhanced: prev[id]?.aiEnhanced ?? false,
-          },
+          [id]: { ...prev[id], loading: false, previousBullets: null, showUndo: false },
         }));
         return;
       }
@@ -153,12 +197,7 @@ export default function ExperienceForm({
         showToast("Failed to improve bullets. Try again.", "error");
         setAiState((prev) => ({
           ...prev,
-          [id]: {
-            loading: false,
-            previousBullets: null,
-            showUndo: false,
-            aiEnhanced: prev[id]?.aiEnhanced ?? false,
-          },
+          [id]: { ...prev[id], loading: false, previousBullets: null, showUndo: false },
         }));
         return;
       }
@@ -166,13 +205,18 @@ export default function ExperienceForm({
       const json = await res.json();
       let improved: string[] = json.bullets ?? [];
 
-      // Pad or trim to preserve original bullet count
-      const origLen = originalBullets.length;
-      if (improved.length < origLen) {
-        improved = [...improved, ...Array<string>(origLen - improved.length).fill("")];
-      } else if (improved.length > origLen) {
-        improved = improved.slice(0, origLen);
+      const wasEmpty = !originalBullets.some((b) => b.trim());
+
+      if (!wasEmpty) {
+        // Improving: preserve original bullet count
+        const origLen = originalBullets.length;
+        if (improved.length < origLen) {
+          improved = [...improved, ...Array<string>(origLen - improved.length).fill("")];
+        } else if (improved.length > origLen) {
+          improved = improved.slice(0, origLen);
+        }
       }
+      // When generating from scratch: keep all generated bullets as-is
 
       // Update the entry and ensure it is visible
       onUpdate({
@@ -186,6 +230,7 @@ export default function ExperienceForm({
       setAiState((prev) => ({
         ...prev,
         [id]: {
+          ...prev[id],
           loading: false,
           previousBullets: originalBullets,
           showUndo: true,
@@ -209,12 +254,7 @@ export default function ExperienceForm({
       showToast("Failed to improve bullets. Try again.", "error");
       setAiState((prev) => ({
         ...prev,
-        [id]: {
-          loading: false,
-          previousBullets: null,
-          showUndo: false,
-          aiEnhanced: prev[id]?.aiEnhanced ?? false,
-        },
+        [id]: { ...prev[id], loading: false, previousBullets: null, showUndo: false },
       }));
     }
   }
@@ -241,12 +281,143 @@ export default function ExperienceForm({
     }));
   }
 
-  const DEFAULT_AI: EntryAIState = {
-    loading: false,
-    previousBullets: null,
-    showUndo: false,
-    aiEnhanced: false,
-  };
+  // ── Generate/improve description (NEW) ────────────────────────────────────
+
+  async function handleGenerateDesc(id: string) {
+    const entry = data.find((e) => e.id === id);
+    if (!entry) return;
+
+    const originalDesc = entry.description ?? "";
+
+    // Clear any existing undo timer for this entry
+    const existing = undoTimers.current.get(id + "_desc");
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id + "_desc");
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: {
+        ...DEFAULT_AI,
+        ...prev[id],
+        descLoading: true,
+        previousDescription: originalDesc,
+        showDescUndo: false,
+      },
+    }));
+
+    try {
+      const res = await fetch("/api/ai/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: entry.role,
+          company: entry.company,
+          startDate: entry.startDate || undefined,
+          endDate: entry.endDate || undefined,
+          current: entry.current,
+          existingDescription: originalDesc,
+          bullets: entry.bullets,
+        }),
+      });
+
+      if (res.status === 429) {
+        showToast("You're generating too fast. Please wait a moment.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], descLoading: false, previousDescription: null, showDescUndo: false },
+        }));
+        return;
+      }
+
+      if (!res.ok) {
+        showToast("Failed to generate description. Try again.", "error");
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], descLoading: false, previousDescription: null, showDescUndo: false },
+        }));
+        return;
+      }
+
+      const json = await res.json();
+      const generated: string = json.description ?? "";
+      const suggestedSkills: string[] = json.suggestedSkills ?? [];
+
+      // Update the entry description and ensure it is visible
+      onUpdate({
+        experience: data.map((e) =>
+          e.id === id ? { ...e, description: generated } : e
+        ),
+      });
+      setExpandedIds((prev) => new Set([...prev, id]));
+
+      // Auto-insert suggested skills if any
+      if (suggestedSkills.length > 0) {
+        const { merged, addedCount } = mergeSkills(skills, suggestedSkills);
+        if (addedCount > 0) {
+          onUpdate({ skills: merged });
+          const sample = suggestedSkills.slice(0, 3).join(", ");
+          const rest = suggestedSkills.length > 3 ? `, ...` : "";
+          showToast(`Added ${addedCount} skill(s): ${sample}${rest}`, "success");
+        }
+      }
+
+      // Update AI state — show undo button for description
+      setAiState((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          descLoading: false,
+          previousDescription: originalDesc,
+          showDescUndo: true,
+          descEnhanced: true,
+        },
+      }));
+
+      // Auto-hide undo after 10s
+      const timer = setTimeout(() => {
+        setAiState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], showDescUndo: false, previousDescription: null },
+        }));
+        undoTimers.current.delete(id + "_desc");
+      }, 10_000);
+      undoTimers.current.set(id + "_desc", timer);
+
+      showToast(`Description generated!`, "success");
+    } catch {
+      showToast("Failed to generate description. Try again.", "error");
+      setAiState((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], descLoading: false, previousDescription: null, showDescUndo: false },
+      }));
+    }
+  }
+
+  function handleUndoDesc(id: string) {
+    const state = aiState[id];
+    if (state?.previousDescription === null || state?.previousDescription === undefined) return;
+
+    onUpdate({
+      experience: data.map((e) =>
+        e.id === id ? { ...e, description: state.previousDescription ?? "" } : e
+      ),
+    });
+
+    const existing = undoTimers.current.get(id + "_desc");
+    if (existing) {
+      clearTimeout(existing);
+      undoTimers.current.delete(id + "_desc");
+    }
+
+    setAiState((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], showDescUndo: false, previousDescription: null },
+    }));
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -276,6 +447,8 @@ export default function ExperienceForm({
             onDeleteCancel={() => setDeleteConfirm(null)}
             onImprove={() => handleImproveBullets(entry.id)}
             onUndo={() => handleUndo(entry.id)}
+            onGenerateDesc={() => handleGenerateDesc(entry.id)}
+            onUndoDesc={() => handleUndoDesc(entry.id)}
           />
         ))}
       </div>
@@ -310,6 +483,8 @@ function ExperienceCard({
   onDeleteCancel,
   onImprove,
   onUndo,
+  onGenerateDesc,
+  onUndoDesc,
 }: CardProps) {
   const parts = [entry.role, entry.company].filter(Boolean);
   const headerLabel =
@@ -322,7 +497,16 @@ function ExperienceCard({
     () => Boolean(entry.description)
   );
 
+  // When AI generates a description, auto-expand the textarea so it's visible
+  useEffect(() => {
+    if ((entry.description ?? "").trim()) {
+      setShowDescription(true);
+    }
+  }, [entry.description]);
+
   const hasBullets = entry.bullets.some((b) => b.trim());
+  const hasDescription = (entry.description ?? "").trim().length > 0;
+  const descAILabel = hasDescription ? "Improve Description" : "Generate Description";
 
   function addBullet() {
     onUpdate({ bullets: [...entry.bullets, ""] });
@@ -358,7 +542,7 @@ function ExperienceCard({
               Current
             </span>
           )}
-          {entryAI.aiEnhanced && (
+          {(entryAI.aiEnhanced || entryAI.descEnhanced) && (
             <span className="shrink-0 text-xs text-indigo-400 bg-indigo-950/60 border border-indigo-800/50 px-1.5 py-0.5 rounded-md leading-none">
               ✨ AI Enhanced
             </span>
@@ -553,24 +737,56 @@ function ExperienceCard({
                   rows={3}
                   value={entry.description ?? ""}
                   onChange={(e) => onUpdate({ description: e.target.value })}
+                  disabled={entryAI.descLoading}
                   placeholder="Briefly describe your role and overall impact in a few sentences…"
-                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                  className={`w-full bg-slate-800 border text-white placeholder-slate-500 text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors resize-none ${
+                    entryAI.descLoading
+                      ? "opacity-40 border-slate-700"
+                      : "border-slate-700"
+                  }`}
                 />
+
+                {/* Description AI actions row */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                  <AIButton
+                    label={descAILabel}
+                    onClick={onGenerateDesc}
+                    loading={entryAI.descLoading}
+                  />
+
+                  {entryAI.showDescUndo && (
+                    <button
+                      type="button"
+                      onClick={onUndoDesc}
+                      className="text-xs text-slate-400 hover:text-white transition-colors underline underline-offset-2"
+                    >
+                      ↩ Undo
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setShowDescription(true)}
-                className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                + Add description
-              </button>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDescription(true)}
+                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  + Add description
+                </button>
+
+                <AIButton
+                  label="Generate Description"
+                  onClick={onGenerateDesc}
+                  loading={entryAI.descLoading}
+                />
+              </div>
             )}
 
             {/* ── Bullet points ──────────────────────────────────────────── */}
             <div>
               <p className="text-xs font-semibold text-slate-300 mb-2">
-                Key Responsibilities / Achievements
+                Responsibilities / Achievements
               </p>
 
               {/* Inputs — faded while AI is loading */}
@@ -616,14 +832,13 @@ function ExperienceCard({
                   disabled={entryAI.loading}
                   className="text-xs font-medium text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  + Add bullet
+                  + Add responsibility
                 </button>
 
                 <AIButton
-                  label="Improve Bullets"
+                  label={hasBullets ? "Improve" : "Generate"}
                   onClick={onImprove}
                   loading={entryAI.loading}
-                  disabled={!hasBullets}
                 />
 
                 {entryAI.showUndo && (

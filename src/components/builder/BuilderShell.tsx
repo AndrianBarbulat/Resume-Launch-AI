@@ -297,6 +297,7 @@ export default function BuilderShell({
         return (
           <ExperienceForm
             data={formData.experience}
+            skills={formData.skills}
             onUpdate={updateFormData}
             errors={errors}
           />

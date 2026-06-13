@@ -34,12 +34,21 @@ export async function POST(req: NextRequest) {
 
     const raw = await askAI(systemPrompt, userMessage, 4096);
 
+    // Strip markdown code fences if the AI wrapped the JSON in ```json ... ```
+    let clean = raw.trim();
+    if (clean.startsWith("```")) {
+      clean = clean
+        .replace(/^```(?:json)?\s*\n?/i, "")
+        .replace(/\n?```\s*$/, "")
+        .trim();
+    }
+
     let skills: string[];
     try {
-      skills = JSON.parse(raw);
+      skills = JSON.parse(clean);
       if (!Array.isArray(skills)) throw new Error("not an array");
     } catch {
-      skills = raw
+      skills = clean
         .split("\n")
         .map((l) => l.replace(/^[\s\-\*\d.\)\"]+/, "").replace(/[\"]+$/, "").trim())
         .filter(Boolean);

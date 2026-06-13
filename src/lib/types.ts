@@ -52,6 +52,7 @@ export interface Education {
   field: string;
   startDate: string;
   endDate: string;
+  description?: string;
 }
 
 export interface Project {
