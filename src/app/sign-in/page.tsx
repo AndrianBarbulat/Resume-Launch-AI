@@ -7,6 +7,13 @@ import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "signin" | "signup";
 
+type FieldErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
+
 const FIREBASE_ERRORS: Record<string, string> = {
   "auth/email-already-in-use": "An account with this email already exists.",
   "auth/invalid-email": "Please enter a valid email address.",
@@ -21,6 +28,47 @@ const FIREBASE_ERRORS: Record<string, string> = {
   "auth/cancelled-popup-request": "", // silent — superseded by a newer popup
 };
 
+const MAX_FIELD_LENGTH = 256;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+function validateFields(
+  mode: Mode,
+  name: string,
+  email: string,
+  password: string,
+  confirmPassword: string,
+): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (mode === "signup") {
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      errors.name = "Name must be at least 2 characters.";
+    } else if (trimmedName.length > MAX_FIELD_LENGTH) {
+      errors.name = `Name must be under ${MAX_FIELD_LENGTH} characters.`;
+    }
+  }
+
+  if (!EMAIL_RE.test(email.trim())) {
+    errors.email = "Please enter a valid email address.";
+  } else if (email.trim().length > MAX_FIELD_LENGTH) {
+    errors.email = `Email must be under ${MAX_FIELD_LENGTH} characters.`;
+  }
+
+  if (!PASSWORD_RE.test(password)) {
+    errors.password = "Must be at least 8 characters with a letter and a number.";
+  } else if (password.length > MAX_FIELD_LENGTH) {
+    errors.password = `Password must be under ${MAX_FIELD_LENGTH} characters.`;
+  }
+
+  if (mode === "signup" && password !== confirmPassword) {
+    errors.confirmPassword = "Passwords don't match.";
+  }
+
+  return errors;
+}
+
 export default function SignInPage() {
   const { user, authReady, signInWithGoogle, signInWithEmail, signUpWithEmail } =
     useAuth();
@@ -30,9 +78,11 @@ export default function SignInPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [googlePending, setGooglePending] = useState(false);
   const [emailPending, setEmailPending] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     if (authReady && user) {
@@ -53,14 +103,17 @@ export default function SignInPage() {
   function switchMode(next: Mode) {
     setMode(next);
     setError("");
+    setFieldErrors({});
     setName("");
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
   }
 
   async function handleGoogleSignIn() {
     if (pending) return;
     setError("");
+    setFieldErrors({});
     setGooglePending(true);
     try {
       await signInWithGoogle();
@@ -69,7 +122,11 @@ export default function SignInPage() {
         const msg =
           FIREBASE_ERRORS[err.code] ?? "Something went wrong. Please try again.";
         if (msg) setError(msg);
+      } else {
+        setError("Something went wrong. Please try again.");
+        console.error("Google sign-in error:", err);
       }
+    } finally {
       setGooglePending(false);
     }
   }
@@ -77,7 +134,23 @@ export default function SignInPage() {
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (pending) return;
+
     setError("");
+    setFieldErrors({});
+
+    // Client-side validation
+    const validationErrors = validateFields(
+      mode,
+      name,
+      email,
+      password,
+      confirmPassword,
+    );
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
+
     setEmailPending(true);
     try {
       if (mode === "signup") {
@@ -91,7 +164,11 @@ export default function SignInPage() {
         const msg =
           FIREBASE_ERRORS[err.code] ?? "Something went wrong. Please try again.";
         if (msg) setError(msg);
+      } else {
+        setError("Something went wrong. Please try again.");
+        console.error("Email auth error:", err);
       }
+    } finally {
       setEmailPending(false);
     }
   }
@@ -163,34 +240,71 @@ export default function SignInPage() {
           {/* Email form */}
           <form onSubmit={handleEmailSubmit} noValidate className="space-y-3">
             {mode === "signup" && (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  maxLength={MAX_FIELD_LENGTH}
+                  autoComplete="name"
+                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                {fieldErrors.name && (
+                  <p className="text-red-400 text-xs mt-1">{fieldErrors.name}</p>
+                )}
+              </div>
+            )}
+            <div>
               <input
-                type="text"
-                placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="name"
+                maxLength={MAX_FIELD_LENGTH}
+                autoComplete="email"
                 className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
               />
+              {fieldErrors.email && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.email}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                maxLength={MAX_FIELD_LENGTH}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+              {fieldErrors.password && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.password}</p>
+              )}
+            </div>
+            {mode === "signup" && (
+              <div>
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  maxLength={MAX_FIELD_LENGTH}
+                  autoComplete="new-password"
+                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                {fieldErrors.confirmPassword && (
+                  <p className="text-red-400 text-xs mt-1">
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
+              </div>
             )}
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
-            />
 
             {error && <p className="text-red-400 text-xs pt-1">{error}</p>}
 
@@ -211,10 +325,6 @@ export default function SignInPage() {
               )}
             </button>
           </form>
-
-          <p className="text-xs text-slate-500 text-center mt-6">
-            By continuing you agree to our terms of service.
-          </p>
         </div>
       </div>
     </div>

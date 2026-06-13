@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
   const { user, authReady, signOut } = useAuth();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  async function handleSignOut() {
+    await signOut();
+    router.push("/sign-in");
+  }
 
   return (
     <nav className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
@@ -55,7 +62,7 @@ export default function Navbar() {
                 )}
                 <span className="text-slate-300 text-sm">{user.displayName}</span>
                 <button
-                  onClick={signOut}
+                  onClick={handleSignOut}
                   className="text-sm text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Sign Out
@@ -127,7 +134,7 @@ export default function Navbar() {
                 </div>
                 <button
                   onClick={() => {
-                    signOut();
+                    handleSignOut();
                     setMenuOpen(false);
                   }}
                   className="text-sm text-slate-400 hover:text-white transition-colors"
