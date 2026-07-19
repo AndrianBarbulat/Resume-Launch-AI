@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { createResume, updateResume } from "@/lib/firestore";
 import type { Resume, ResumeFormData } from "@/lib/types";
+import { DEFAULT_FORMATTING } from "@/lib/types";
 import StepProgress from "@/components/builder/StepProgress";
 import ResumeTitle from "@/components/builder/ResumeTitle";
 import PersonalInfoForm from "@/components/builder/PersonalInfoForm";
@@ -18,6 +19,7 @@ import ResumePreview from "@/components/preview/ResumePreview";
 import ZoomControls from "@/components/preview/ZoomControls";
 import PDFRenderContainer from "@/components/preview/PDFRenderContainer";
 import DownloadButton from "@/components/preview/DownloadButton";
+import FormattingToolbar from "@/components/preview/FormattingToolbar";
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 
@@ -137,7 +139,13 @@ export default function BuilderShell({
   const { user } = useAuth();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<ResumeFormData>(initialData);
+  // Ensure backwards compatibility: old resumes without a formatting field get defaults
+  const init = { ...initialData };
+  if (!init.formatting) {
+    init.formatting = { ...DEFAULT_FORMATTING };
+  }
+
+  const [formData, setFormData] = useState<ResumeFormData>(init);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -495,6 +503,10 @@ export default function BuilderShell({
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                <FormattingToolbar
+                  formatting={formData.formatting ?? DEFAULT_FORMATTING}
+                  onChange={(f) => updateFormData({ formatting: f })}
+                />
                 <ZoomControls zoom={zoom} onChange={setZoom} />
                 <DownloadButton
                   resume={fullResumeForPDF}
@@ -505,7 +517,11 @@ export default function BuilderShell({
               </div>
             </div>
 
-            <ResumePreview resume={formData} zoom={zoom} />
+            <ResumePreview
+              resume={formData}
+              zoom={zoom}
+              formatting={formData.formatting ?? DEFAULT_FORMATTING}
+            />
           </div>
         </div>
       </div>
@@ -537,6 +553,7 @@ export default function BuilderShell({
       <PDFRenderContainer
         resume={fullResumeForPDF}
         containerRef={pdfContainerRef}
+        formatting={formData.formatting ?? DEFAULT_FORMATTING}
       />
     </div>
   );

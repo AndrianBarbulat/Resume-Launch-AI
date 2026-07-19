@@ -13,6 +13,7 @@ export interface Resume {
   skills: string[];
   projects: Project[];
   projectsEnabled: boolean;
+  formatting?: ResumeFormatting;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
   /** Firebase Storage download URL — set after first cloud export */
@@ -24,6 +25,20 @@ export interface Resume {
 }
 
 export type ResumeFormData = Omit<Resume, "id" | "userId" | "createdAt" | "updatedAt">;
+
+export interface ResumeFormatting {
+  fontSize: number; // 0.8 | 0.9 | 1.0 | 1.1 | 1.2
+  headerAlign: "left" | "center" | "right";
+  sectionAlign: "left" | "center" | "right";
+  bodyAlign: "left" | "center" | "right";
+}
+
+export const DEFAULT_FORMATTING: ResumeFormatting = {
+  fontSize: 1.0,
+  headerAlign: "center",
+  sectionAlign: "left",
+  bodyAlign: "left",
+};
 
 export interface PersonalInfo {
   fullName: string;

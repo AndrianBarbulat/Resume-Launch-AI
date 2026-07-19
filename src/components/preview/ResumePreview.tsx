@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Resume, ResumeFormData } from "@/lib/types";
+import type { Resume, ResumeFormData, ResumeFormatting } from "@/lib/types";
+import { DEFAULT_FORMATTING } from "@/lib/types";
 import { templates } from "@/lib/templates";
 
 interface ResumePreviewProps {
@@ -12,13 +13,19 @@ interface ResumePreviewProps {
    * 0.5 = half the fit size.  1.5 = 50% larger than fit (triggers scroll).
    */
   zoom?: number;
+  /** Formatting options for the resume display */
+  formatting?: ResumeFormatting;
 }
 
 // US Letter at 96 dpi — matches `min-height: 1056px` used by all templates
 const PAPER_W = 816;
 const PAPER_H = 1056;
 
-export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) {
+export default function ResumePreview({
+  resume,
+  zoom = 1,
+  formatting = DEFAULT_FORMATTING,
+}: ResumePreviewProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [autoFitScale, setAutoFitScale] = useState(0.75);
 
@@ -43,6 +50,7 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
     createdAt: null,
     updatedAt: null,
     ...resume,
+    formatting,
   };
 
   const templateKey = fullResume.template ?? "modern";
@@ -52,6 +60,9 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
   // Visual dimensions of the scaled paper
   const renderedW = PAPER_W * effectiveScale;
   const renderedH = PAPER_H * effectiveScale;
+
+  // Font scaling: apply CSS zoom on the paper so all inline pt sizes scale proportionally
+  const fontZoom = formatting.fontSize;
 
   return (
     /*
@@ -65,7 +76,10 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
        * scaled paper. This sets the wrapper's scroll area correctly, so the
        * browser knows the actual scrollable extent.
        */}
-      <div data-flow-sizer style={{ width: renderedW, height: renderedH, position: "relative" }}>
+      <div
+        data-flow-sizer
+        style={{ width: renderedW, height: renderedH, position: "relative" }}
+      >
         {/*
          * Paper: absolutely positioned so it doesn't double-count layout space.
          * Rendered at natural PAPER_W × PAPER_H, then CSS-transformed to
@@ -86,9 +100,11 @@ export default function ResumePreview({ resume, zoom = 1 }: ResumePreviewProps) 
             border: "1px solid #e5e7eb",
             overflow: "hidden",
             backgroundColor: "#ffffff",
+            // Font scaling via CSS zoom — scales inline pt sizes proportionally
+            zoom: fontZoom,
           }}
         >
-          <TemplateComponent resume={fullResume} />
+          <TemplateComponent resume={fullResume} formatting={formatting} />
         </div>
       </div>
     </div>

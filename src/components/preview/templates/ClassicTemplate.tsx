@@ -1,12 +1,14 @@
 "use client";
 
-import type { Resume } from "@/lib/types";
+import type { Resume, ResumeFormatting } from "@/lib/types";
+import { DEFAULT_FORMATTING } from "@/lib/types";
 
 interface TemplateProps {
   resume: Resume;
+  formatting?: ResumeFormatting;
 }
 
-export function ClassicTemplate({ resume }: TemplateProps) {
+export function ClassicTemplate({ resume, formatting = DEFAULT_FORMATTING }: TemplateProps) {
   const { personalInfo, summary, experience, education, skills, projects, projectsEnabled } = resume;
 
   const name = personalInfo?.fullName || "Your Name";
@@ -30,6 +32,10 @@ export function ClassicTemplate({ resume }: TemplateProps) {
     return year;
   }
 
+  const headerAlign = formatting.headerAlign;
+  const headerJustify: React.CSSProperties["justifyContent"] =
+    headerAlign === "center" ? "center" : headerAlign === "right" ? "flex-end" : "flex-start";
+
   return (
     <div
       style={{
@@ -45,7 +51,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
       }}
     >
       {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+      <div style={{ textAlign: formatting.headerAlign as React.CSSProperties["textAlign"], marginBottom: "20px" }}>
         <h1 style={{ fontSize: "26pt", fontWeight: "700", margin: "0 0 6px 0", fontFamily: "'Segoe UI', Arial, sans-serif", letterSpacing: "-0.02em", color: "#111111" }}>
           {name}
         </h1>
@@ -60,8 +66,8 @@ export function ClassicTemplate({ resume }: TemplateProps) {
 
       {/* Summary */}
       <div style={{ marginBottom: "20px" }}>
-        <h2 style={sectionHeading}>Professional Summary</h2>
-        <p style={{ margin: "6px 0 0 0", fontSize: "10.5pt", color: summary ? "#222222" : "#aaaaaa", lineHeight: "1.65", textAlign: "justify" }}>
+        <h2 style={{ ...sectionHeading, textAlign: formatting.sectionAlign }}>Professional Summary</h2>
+        <p style={{ margin: "6px 0 0 0", fontSize: "10.5pt", color: summary ? "#222222" : "#aaaaaa", lineHeight: "1.65", textAlign: formatting.bodyAlign as React.CSSProperties["textAlign"] }}>
           {summary || "Professional summary will appear here."}
         </p>
       </div>
@@ -72,7 +78,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
       {experience && experience.length > 0 && (
         <>
           <div style={{ marginBottom: "20px" }}>
-            <h2 style={sectionHeading}>Experience</h2>
+            <h2 style={{ ...sectionHeading, textAlign: formatting.sectionAlign }}>Experience</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "8px" }}>
               {experience.map((exp) => (
                 <div key={exp.id}>
@@ -91,19 +97,19 @@ export function ClassicTemplate({ resume }: TemplateProps) {
                       {formatDate(exp.startDate)} – {formatDate(exp.endDate, exp.current)}
                     </span>
                   </div>
+                  {exp.description && (
+                    <p style={{ margin: "5px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.55", textAlign: formatting.bodyAlign as React.CSSProperties["textAlign"] }}>
+                      {exp.description}
+                    </p>
+                  )}
                   {exp.bullets && exp.bullets.filter(Boolean).length > 0 && (
                     <ul style={{ margin: "5px 0 0 0", paddingLeft: "22px" }}>
                       {exp.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} style={{ fontSize: "10.5pt", color: "#222222", marginBottom: "3px", lineHeight: "1.55" }}>
+                        <li key={i} style={{ fontSize: "10.5pt", color: "#222222", marginBottom: "3px", lineHeight: "1.55", textAlign: formatting.bodyAlign as React.CSSProperties["textAlign"] }}>
                           {b}
                         </li>
                       ))}
                     </ul>
-                  )}
-                  {exp.description && (!exp.bullets || exp.bullets.filter(Boolean).length === 0) && (
-                    <p style={{ margin: "5px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.55" }}>
-                      {exp.description}
-                    </p>
                   )}
                 </div>
               ))}
@@ -117,7 +123,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
       {education && education.length > 0 && (
         <>
           <div style={{ marginBottom: "20px" }}>
-            <h2 style={sectionHeading}>Education</h2>
+            <h2 style={{ ...sectionHeading, textAlign: formatting.sectionAlign }}>Education</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
               {education.map((edu) => (
                 <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -148,8 +154,8 @@ export function ClassicTemplate({ resume }: TemplateProps) {
       {skills && skills.length > 0 && (
         <>
           <div style={{ marginBottom: "20px" }}>
-            <h2 style={sectionHeading}>Skills</h2>
-            <p style={{ margin: "6px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.6" }}>
+            <h2 style={{ ...sectionHeading, textAlign: formatting.sectionAlign }}>Skills</h2>
+            <p style={{ margin: "6px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.6", textAlign: formatting.bodyAlign as React.CSSProperties["textAlign"] }}>
               {skills.join("  ·  ")}
             </p>
           </div>
@@ -160,7 +166,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
       {/* Projects */}
       {projectsEnabled && projects && projects.length > 0 && (
         <div>
-          <h2 style={sectionHeading}>Projects</h2>
+          <h2 style={{ ...sectionHeading, textAlign: formatting.sectionAlign }}>Projects</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
             {projects.map((proj) => (
               <div key={proj.id}>
@@ -175,7 +181,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
                   )}
                 </div>
                 {proj.description && (
-                  <p style={{ margin: "3px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.55" }}>
+                  <p style={{ margin: "3px 0 0 0", fontSize: "10.5pt", color: "#222222", lineHeight: "1.55", textAlign: formatting.bodyAlign as React.CSSProperties["textAlign"] }}>
                     {proj.description}
                   </p>
                 )}

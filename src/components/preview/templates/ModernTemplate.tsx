@@ -1,12 +1,14 @@
 "use client";
 
-import type { Resume } from "@/lib/types";
+import type { Resume, ResumeFormatting } from "@/lib/types";
+import { DEFAULT_FORMATTING } from "@/lib/types";
 
 interface TemplateProps {
   resume: Resume;
+  formatting?: ResumeFormatting;
 }
 
-export function ModernTemplate({ resume }: TemplateProps) {
+export function ModernTemplate({ resume, formatting = DEFAULT_FORMATTING }: TemplateProps) {
   const { personalInfo, summary, experience, education, skills, projects, projectsEnabled } = resume;
 
   const name = personalInfo?.fullName || "Your Name";
@@ -29,6 +31,42 @@ export function ModernTemplate({ resume }: TemplateProps) {
     }
     return year;
   }
+
+  // Section heading style with alignment from formatting
+  const sectionHeadingStyle: React.CSSProperties = {
+    ...sidebarHeading,
+    textAlign: formatting.sectionAlign,
+  };
+
+  const mainHeadingStyle: React.CSSProperties = {
+    ...mainHeading,
+    textAlign: formatting.sectionAlign,
+  };
+
+  const bodyTextStyle: React.CSSProperties = {
+    textAlign: formatting.bodyAlign,
+  };
+
+  const headerStyle: React.CSSProperties = {
+    marginBottom: "24px",
+    borderBottom: "1px solid rgba(255,255,255,0.2)",
+    paddingBottom: "20px",
+    textAlign: formatting.headerAlign,
+  };
+
+  const contactStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    alignItems: formatting.headerAlign === "center" ? "center" : formatting.headerAlign === "right" ? "flex-end" : "flex-start",
+  };
+
+  const skillsContainerStyle: React.CSSProperties = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+    justifyContent: formatting.bodyAlign === "center" ? "center" : formatting.bodyAlign === "right" ? "flex-end" : "flex-start",
+  };
 
   return (
     <div
@@ -55,7 +93,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
         }}
       >
         {/* Name */}
-        <div style={{ marginBottom: "24px", borderBottom: "1px solid rgba(255,255,255,0.2)", paddingBottom: "20px" }}>
+        <div style={headerStyle}>
           <h1 style={{ fontSize: "20pt", fontWeight: "700", margin: "0 0 4px 0", lineHeight: "1.2", color: "#ffffff" }}>
             {name}
           </h1>
@@ -69,8 +107,8 @@ export function ModernTemplate({ resume }: TemplateProps) {
         {/* Contact */}
         {contactItems.length > 0 && (
           <div style={{ marginBottom: "28px" }}>
-            <h2 style={sidebarHeading}>Contact</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <h2 style={sectionHeadingStyle}>Contact</h2>
+            <div style={contactStyle}>
               {email && (
                 <div style={contactRow}>
                   <span style={contactIcon}>✉</span>
@@ -108,8 +146,8 @@ export function ModernTemplate({ resume }: TemplateProps) {
         {/* Skills */}
         {skills && skills.length > 0 && (
           <div style={{ marginBottom: "28px" }}>
-            <h2 style={sidebarHeading}>Skills</h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            <h2 style={sectionHeadingStyle}>Skills</h2>
+            <div style={skillsContainerStyle}>
               {skills.map((skill, i) => (
                 <span
                   key={i}
@@ -132,7 +170,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
         {/* Education */}
         {education && education.length > 0 && (
           <div>
-            <h2 style={sidebarHeading}>Education</h2>
+            <h2 style={sectionHeadingStyle}>Education</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {education.map((edu) => (
                 <div key={edu.id}>
@@ -161,8 +199,8 @@ export function ModernTemplate({ resume }: TemplateProps) {
 
         {/* Summary */}
         <div style={{ marginBottom: "28px" }}>
-          <h2 style={mainHeading}>Professional Summary</h2>
-          <p style={{ margin: "8px 0 0 0", fontSize: "10.5pt", color: summary ? "#374151" : "#9ca3af", lineHeight: "1.6" }}>
+          <h2 style={mainHeadingStyle}>Professional Summary</h2>
+          <p style={{ margin: "8px 0 0 0", fontSize: "10.5pt", color: summary ? "#374151" : "#9ca3af", lineHeight: "1.6", textAlign: formatting.bodyAlign }}>
             {summary || "Professional summary will appear here."}
           </p>
         </div>
@@ -170,7 +208,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
         {/* Experience */}
         {experience && experience.length > 0 && (
           <div style={{ marginBottom: "28px" }}>
-            <h2 style={mainHeading}>Work Experience</h2>
+            <h2 style={mainHeadingStyle}>Work Experience</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "10px" }}>
               {experience.map((exp) => (
                 <div key={exp.id}>
@@ -189,19 +227,19 @@ export function ModernTemplate({ resume }: TemplateProps) {
                       {formatDate(exp.startDate)} – {formatDate(exp.endDate, exp.current)}
                     </span>
                   </div>
+                  {exp.description && (
+                    <p style={{ margin: "6px 0 0 0", fontSize: "10pt", color: "#374151", lineHeight: "1.5", textAlign: formatting.bodyAlign }}>
+                      {exp.description}
+                    </p>
+                  )}
                   {exp.bullets && exp.bullets.filter(Boolean).length > 0 && (
                     <ul style={{ margin: "6px 0 0 0", paddingLeft: "18px" }}>
                       {exp.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} style={{ fontSize: "10pt", color: "#374151", marginBottom: "3px", lineHeight: "1.5" }}>
+                        <li key={i} style={{ fontSize: "10pt", color: "#374151", marginBottom: "3px", lineHeight: "1.5", textAlign: formatting.bodyAlign }}>
                           {b}
                         </li>
                       ))}
                     </ul>
-                  )}
-                  {exp.description && (!exp.bullets || exp.bullets.filter(Boolean).length === 0) && (
-                    <p style={{ margin: "6px 0 0 0", fontSize: "10pt", color: "#374151", lineHeight: "1.5" }}>
-                      {exp.description}
-                    </p>
                   )}
                 </div>
               ))}
@@ -212,7 +250,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
         {/* Projects */}
         {projectsEnabled && projects && projects.length > 0 && (
           <div>
-            <h2 style={mainHeading}>Projects</h2>
+            <h2 style={mainHeadingStyle}>Projects</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "10px" }}>
               {projects.map((proj) => (
                 <div key={proj.id}>
@@ -225,7 +263,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
                     )}
                   </div>
                   {proj.description && (
-                    <p style={{ margin: "0", fontSize: "10pt", color: "#374151", lineHeight: "1.5" }}>
+                    <p style={{ margin: "0", fontSize: "10pt", color: "#374151", lineHeight: "1.5", textAlign: formatting.bodyAlign }}>
                       {proj.description}
                     </p>
                   )}

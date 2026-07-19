@@ -1,13 +1,18 @@
 import { ModernTemplate } from "@/components/preview/templates/ModernTemplate";
 import { ClassicTemplate } from "@/components/preview/templates/ClassicTemplate";
 import { MinimalTemplate } from "@/components/preview/templates/MinimalTemplate";
-import type { Resume } from "@/lib/types";
+import type { Resume, ResumeFormatting } from "@/lib/types";
 import type { ComponentType } from "react";
+
+export interface TemplateProps {
+  resume: Resume;
+  formatting?: ResumeFormatting;
+}
 
 export interface TemplateDefinition {
   name: string;
   description: string;
-  component: ComponentType<{ resume: Resume }>;
+  component: ComponentType<TemplateProps>;
 }
 
 export const templates: Record<Resume["template"], TemplateDefinition> = {

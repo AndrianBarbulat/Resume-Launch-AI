@@ -1,12 +1,14 @@
 "use client";
 
-import type { Resume } from "@/lib/types";
+import type { Resume, ResumeFormatting } from "@/lib/types";
+import { DEFAULT_FORMATTING } from "@/lib/types";
 
 interface TemplateProps {
   resume: Resume;
+  formatting?: ResumeFormatting;
 }
 
-export function MinimalTemplate({ resume }: TemplateProps) {
+export function MinimalTemplate({ resume, formatting = DEFAULT_FORMATTING }: TemplateProps) {
   const { personalInfo, summary, experience, education, skills, projects, projectsEnabled } = resume;
 
   const name = personalInfo?.fullName || "Your Name";
@@ -30,6 +32,10 @@ export function MinimalTemplate({ resume }: TemplateProps) {
     return year;
   }
 
+  const headerAlign = formatting.headerAlign as React.CSSProperties["textAlign"];
+  const sectionAlign = formatting.sectionAlign as React.CSSProperties["textAlign"];
+  const bodyAlign = formatting.bodyAlign as React.CSSProperties["textAlign"];
+
   return (
     <div
       style={{
@@ -45,7 +51,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       }}
     >
       {/* Header */}
-      <div style={{ marginBottom: "40px" }}>
+      <div style={{ marginBottom: "40px", textAlign: headerAlign }}>
         <h1 style={{ fontSize: "30pt", fontWeight: "300", margin: "0 0 8px 0", color: "#374151", letterSpacing: "-0.03em", lineHeight: "1.1" }}>
           {name}
         </h1>
@@ -58,8 +64,8 @@ export function MinimalTemplate({ resume }: TemplateProps) {
 
       {/* Summary */}
       <div style={{ marginBottom: "36px" }}>
-        <h2 style={sectionHeading}>Summary</h2>
-        <p style={{ margin: "10px 0 0 0", fontSize: "10.5pt", color: summary ? "#4b5563" : "#d1d5db", lineHeight: "1.75", fontWeight: "300" }}>
+        <h2 style={{ ...sectionHeading, textAlign: sectionAlign }}>Summary</h2>
+        <p style={{ margin: "10px 0 0 0", fontSize: "10.5pt", color: summary ? "#4b5563" : "#d1d5db", lineHeight: "1.75", fontWeight: "300", textAlign: bodyAlign }}>
           {summary || "Professional summary will appear here."}
         </p>
       </div>
@@ -67,7 +73,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       {/* Experience */}
       {experience && experience.length > 0 && (
         <div style={{ marginBottom: "36px" }}>
-          <h2 style={sectionHeading}>Experience</h2>
+          <h2 style={{ ...sectionHeading, textAlign: sectionAlign }}>Experience</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginTop: "10px" }}>
             {experience.map((exp) => (
               <div key={exp.id}>
@@ -86,20 +92,20 @@ export function MinimalTemplate({ resume }: TemplateProps) {
                     {formatDate(exp.startDate)}{(exp.startDate || exp.endDate || exp.current) ? " – " : ""}{formatDate(exp.endDate, exp.current)}
                   </span>
                 </div>
+                {exp.description && (
+                  <p style={{ margin: "6px 0 0 0", fontSize: "10pt", color: "#4b5563", lineHeight: "1.65", fontWeight: "300", textAlign: bodyAlign }}>
+                    {exp.description}
+                  </p>
+                )}
                 {exp.bullets && exp.bullets.filter(Boolean).length > 0 && (
                   <ul style={{ margin: "6px 0 0 0", paddingLeft: "0", listStyle: "none" }}>
                     {exp.bullets.filter(Boolean).map((b, i) => (
-                      <li key={i} style={{ fontSize: "10pt", color: "#4b5563", marginBottom: "4px", lineHeight: "1.65", fontWeight: "300", paddingLeft: "12px", position: "relative" }}>
+                      <li key={i} style={{ fontSize: "10pt", color: "#4b5563", marginBottom: "4px", lineHeight: "1.65", fontWeight: "300", paddingLeft: "12px", position: "relative", textAlign: bodyAlign }}>
                         <span style={{ position: "absolute", left: "0", color: "#9ca3af" }}>–</span>
                         {b}
                       </li>
                     ))}
                   </ul>
-                )}
-                {exp.description && (!exp.bullets || exp.bullets.filter(Boolean).length === 0) && (
-                  <p style={{ margin: "6px 0 0 0", fontSize: "10pt", color: "#4b5563", lineHeight: "1.65", fontWeight: "300" }}>
-                    {exp.description}
-                  </p>
                 )}
               </div>
             ))}
@@ -110,7 +116,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       {/* Education */}
       {education && education.length > 0 && (
         <div style={{ marginBottom: "36px" }}>
-          <h2 style={sectionHeading}>Education</h2>
+          <h2 style={{ ...sectionHeading, textAlign: sectionAlign }}>Education</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "10px" }}>
             {education.map((edu) => (
               <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -138,8 +144,8 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       {/* Skills */}
       {skills && skills.length > 0 && (
         <div style={{ marginBottom: "36px" }}>
-          <h2 style={sectionHeading}>Skills</h2>
-          <p style={{ margin: "10px 0 0 0", fontSize: "10pt", color: "#4b5563", fontWeight: "300", lineHeight: "1.7" }}>
+          <h2 style={{ ...sectionHeading, textAlign: sectionAlign }}>Skills</h2>
+          <p style={{ margin: "10px 0 0 0", fontSize: "10pt", color: "#4b5563", fontWeight: "300", lineHeight: "1.7", textAlign: bodyAlign }}>
             {skills.join(", ")}
           </p>
         </div>
@@ -148,7 +154,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       {/* Projects */}
       {projectsEnabled && projects && projects.length > 0 && (
         <div>
-          <h2 style={sectionHeading}>Projects</h2>
+          <h2 style={{ ...sectionHeading, textAlign: sectionAlign }}>Projects</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "10px" }}>
             {projects.map((proj) => (
               <div key={proj.id}>
@@ -163,7 +169,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
                   )}
                 </div>
                 {proj.description && (
-                  <p style={{ margin: "0", fontSize: "10pt", color: "#4b5563", lineHeight: "1.65", fontWeight: "300" }}>
+                  <p style={{ margin: "0", fontSize: "10pt", color: "#4b5563", lineHeight: "1.65", fontWeight: "300", textAlign: bodyAlign }}>
                     {proj.description}
                   </p>
                 )}
